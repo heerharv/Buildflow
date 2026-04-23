@@ -1,0 +1,11 @@
+.env
+.env.*
+<<<<<<< HEAD
+instance/
+*.db
+=======
+>>>>>>> 1ced4eb (Initialize BuildFlow project with dashboard/auth flow.)
+.venv/
+venv/
+__pycache__/
+*.pyc

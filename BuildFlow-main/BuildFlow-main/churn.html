@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Churn Index</title>
+    <link rel="stylesheet" href="/uncia.css">
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Rework / Churn Index</div>
+            <div class="page-subtitle">How often delivered work is revisited</div>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <select id="projectSelect" class="select">
+                    <option value="">— Select a project —</option>
+                </select>
+                <button class="btn btn-secondary" onclick="loadData()">↻ Refresh</button>
+            </div>
+
+            <div id="msg" class="msg"></div>
+
+            <div class="stats-grid" id="stats" style="display:none;">
+                <div class="stat-card"><div class="stat-label">Churn Index</div><div class="stat-value" id="churnIndex">—</div></div>
+                <div class="stat-card"><div class="stat-label">Churn Rate</div><div class="stat-value" id="churnRate">—</div></div>
+                <div class="stat-card"><div class="stat-label">Churned Issues</div><div class="stat-value" id="churnedCount">—</div></div>
+                <div class="stat-card"><div class="stat-label">Verdict</div><div class="stat-value" id="verdict">—</div></div>
+            </div>
+
+            <div class="card" id="detailsCard" style="display:none;">
+                <div class="card-title">Top Churned Issues</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Issue</th>
+                                <th>Summary</th>
+                                <th>Assignee</th>
+                                <th>Reopens</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        let currentProject = '';
+
+        function showMsg(text, type = 'info') {
+            const el = document.getElementById('msg');
+            el.textContent = text;
+            el.className = `msg ${type}`;
+        }
+
+        async function init() {
+            const user = await initPage('churn');
+            if (!user) return;
+            await loadProjects('projectSelect', loadData);
+            if (user.default_project) {
+                document.getElementById('projectSelect').value = user.default_project;
+                await loadData();
+            }
+        }
+
+        async function loadData() {
+            const project = document.getElementById('projectSelect').value;
+            if (!project) return;
+            currentProject = project;
+            showMsg('Loading churn metrics...', 'info');
+            try {
+                const res = await fetch(`${API_BASE}/churn/${project}`, { credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to load churn data');
+                }
+
+                document.getElementById('stats').style.display = 'grid';
+                document.getElementById('detailsCard').style.display = 'block';
+                document.getElementById('churnIndex').textContent = data.churn_index;
+                document.getElementById('churnRate').textContent = `${data.churn_rate_pct}%`;
+                document.getElementById('churnedCount').textContent = data.churned_count;
+                document.getElementById('verdict').textContent = data.verdict;
+
+                const rows = data.churned_issues || [];
+                document.getElementById('tbody').innerHTML = rows.length ? rows.map(r => `
+                    <tr>
+                        <td>${r.key}</td>
+                        <td>${r.summary || ''}</td>
+                        <td>${r.assignee || 'Unassigned'}</td>
+                        <td>${r.reopen_count || 1}</td>
+                        <td>${r.priority || 'Medium'}</td>
+                    </tr>
+                `).join('') : '<tr><td colspan="5" class="empty-state">No churned issues found.</td></tr>';
+                showMsg(`Loaded churn metrics for ${project}.`, 'success');
+            } catch (err) {
+                showMsg(err.message, 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

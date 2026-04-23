@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Settings</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <style>
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .settings-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+        }
+
+        .settings-card-full {
+            grid-column: 1 / -1;
+        }
+
+        .settings-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .settings-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(108,99,255,0.1);
+        }
+
+        .form-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-hint {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 5px;
+        }
+
+        .form-hint a { color: var(--accent); text-decoration: none; }
+        .form-hint a:hover { text-decoration: underline; }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            flex-shrink: 0;
+        }
+
+        .dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+        .dot.error { background: var(--error); }
+
+        @keyframes pulse {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .connection-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text2);
+        }
+
+        .danger-zone {
+            border-color: rgba(255,77,109,0.2);
+        }
+
+        .danger-zone .settings-subtitle { border-color: rgba(255,77,109,0.15); }
+
+        @media (max-width: 780px) {
+            .settings-grid { grid-template-columns: 1fr; }
+            .settings-card-full { grid-column: 1; }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Settings</div>
+            <div class="page-subtitle">Integrations & Account</div>
+        </div>
+        <div class="content">
+            <div class="settings-grid">
+
+                <!-- Jira Config -->
+                <div class="settings-card settings-card-full">
+                    <div class="settings-title">🔗 Jira Integration</div>
+                    <div class="settings-subtitle">Connect your Atlassian Jira Cloud account</div>
+
+                    <div class="connection-indicator" id="connectionIndicator">
+                        <div class="dot" id="connectionDot"></div>
+                        <div class="connection-label" id="connectionLabel">Checking connection...</div>
+                    </div>
+
+                    <div class="msg" id="jiraMsg"></div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">Jira Domain</label>
+                            <input type="text" id="jiraDomain" class="form-input" placeholder="yourcompany.atlassian.net">
+                            <div class="form-hint">Without https://</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Jira Email</label>
+                            <input type="email" id="jiraEmail" class="form-input" placeholder="you@company.com">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">API Token</label>
+                        <input type="password" id="jiraToken" class="form-input" placeholder="Paste your API token here">
+                        <div class="form-hint">Generate at <a href="https://id.atlassian.com/manage/api-tokens" target="_blank">id.atlassian.com/manage/api-tokens</a></div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-secondary" onclick="connectJiraOAuth()">Connect with OAuth</button>
+                        <button class="btn btn-primary" onclick="saveJira()">Save Settings</button>
+                        <button class="btn btn-secondary" onclick="testJira()">Test Connection</button>
+                    </div>
+                </div>
+
+                <!-- Teams Webhook -->
+                <div class="settings-card">
+                    <div class="settings-title">📢 Teams Notifications</div>
+                    <div class="settings-subtitle">Microsoft Teams webhook</div>
+
+                    <div class="msg" id="teamsMsg"></div>
+
+                    <div class="form-group">
+                        <label class="form-label">Webhook URL</label>
+                        <input type="text" id="teamsWebhook" class="form-input" placeholder="https://outlook.office.com/webhook/...">
+                        <div class="form-hint">Optional. Get from Teams channel → Connectors.</div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="saveTeams()">Save Webhook</button>
+                    </div>
+                </div>
+
+                <!-- Account Info -->
+                <div class="settings-card">
+                    <div class="settings-title">👤 Account</div>
+                    <div class="settings-subtitle">Your profile</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="dispUsername" class="form-input" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="dispEmail" class="form-input" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Member Since</label>
+                        <input type="text" id="dispJoined" class="form-input" disabled>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-secondary" onclick="doLogout()">Sign Out</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        function showMsg(id, text, type) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `msg ${type}`;
+            if (type === 'success') setTimeout(() => { el.className = 'msg'; }, 3000);
+        }
+
+        function setConnection(state, label) {
+            const dot = document.getElementById('connectionDot');
+            const lbl = document.getElementById('connectionLabel');
+            dot.className = 'dot ' + state;
+            lbl.textContent = label;
+        }
+
+        async function init() {
+            const user = await initPage('settings');
+            if (!user) return;
+
+            document.getElementById('dispUsername').value = user.username;
+            document.getElementById('dispEmail').value = user.email;
+            document.getElementById('dispJoined').value = new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            await loadJiraSettings(user);
+            const oauthStatus = new URLSearchParams(window.location.search).get('jira_oauth');
+            if (oauthStatus === 'success') {
+                showMsg('jiraMsg', 'OAuth connected successfully.', 'success');
+                window.history.replaceState({}, document.title, '/settings.html');
+            } else if (oauthStatus === 'error') {
+                showMsg('jiraMsg', 'OAuth connection failed. Check OAuth env config and try again.', 'error');
+                window.history.replaceState({}, document.title, '/settings.html');
+            }
+        }
+
+        async function loadJiraSettings(user) {
+            try {
+                const res = await fetch(`${API_BASE}/settings/jira`);
+                const data = await res.json();
+                document.getElementById('jiraDomain').value = data.jira_domain || '';
+                document.getElementById('jiraEmail').value = data.jira_email || '';
+                if (data.has_token) {
+                    document.getElementById('jiraToken').placeholder = '●●●●●● (configured — leave blank to keep)';
+                }
+
+                if (data.oauth_connected) {
+                    const site = data.oauth_site || 'Atlassian site';
+                    setConnection('connected', `Connected via OAuth — ${site}`);
+                } else if (user.has_jira) {
+                    setConnection('connected', `Connected — ${data.jira_email}`);
+                } else {
+                    setConnection('', 'Not configured');
+                }
+            } catch {
+                setConnection('error', 'Failed to load settings');
+            }
+        }
+
+        async function connectJiraOAuth() {
+            try {
+                const res = await fetch(`${API_BASE}/jira/oauth/start?next=/settings.html`);
+                const data = await res.json();
+                if (res.ok && data.auth_url) {
+                    window.location.href = data.auth_url;
+                    return;
+                }
+                showMsg('jiraMsg', data.error || 'Failed to start OAuth flow', 'error');
+            } catch (err) {
+                showMsg('jiraMsg', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function saveJira() {
+            const domain = document.getElementById('jiraDomain').value.trim();
+            const email = document.getElementById('jiraEmail').value.trim();
+            const token = document.getElementById('jiraToken').value.trim();
+
+            if (!domain || !email) { showMsg('jiraMsg', 'Please fill in domain and email.', 'error'); return; }
+
+            const payload = { jira_domain: domain, jira_email: email };
+            if (token) payload.jira_api_token = token;
+
+            try {
+                const res = await fetch(`${API_BASE}/settings/jira`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showMsg('jiraMsg', '✓ Settings saved and verified.', 'success');
+                    setConnection('connected', `Connected — ${email}`);
+                    document.getElementById('jiraToken').value = '';
+                    document.getElementById('jiraToken').placeholder = '●●●●●● (configured — leave blank to keep)';
+                } else {
+                    showMsg('jiraMsg', data.error || 'Failed to save', 'error');
+                    setConnection('error', 'Connection failed');
+                }
+            } catch (err) {
+                showMsg('jiraMsg', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function testJira() {
+            setConnection('', 'Testing...');
+            try {
+                const res = await fetch(`${API_BASE}/jira/test`);
+                const data = await res.json();
+                if (res.ok) {
+                    showMsg('jiraMsg', `✓ Connected as ${data.authenticated_user}`, 'success');
+                    setConnection('connected', `Connected as ${data.authenticated_user}`);
+                } else {
+                    showMsg('jiraMsg', data.error || 'Connection failed', 'error');
+                    setConnection('error', 'Connection failed');
+                }
+            } catch (err) {
+                showMsg('jiraMsg', 'Error: ' + err.message, 'error');
+                setConnection('error', 'Connection failed');
+            }
+        }
+
+        async function saveTeams() {
+            const webhook = document.getElementById('teamsWebhook').value.trim();
+            if (!webhook) { showMsg('teamsMsg', 'Please enter a webhook URL.', 'error'); return; }
+            try {
+                const res = await fetch(`${API_BASE}/settings/jira`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ teams_webhook_url: webhook })
+                });
+                if (res.ok) showMsg('teamsMsg', '✓ Webhook saved.', 'success');
+                else showMsg('teamsMsg', 'Failed to save webhook.', 'error');
+            } catch (err) {
+                showMsg('teamsMsg', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

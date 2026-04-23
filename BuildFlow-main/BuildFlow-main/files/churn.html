@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Rework & Churn Index — BuildFlow</title>
+<link rel="stylesheet" href="uncia.css"/>
+<style>
+  :root{--accent:#6c63ff;--danger:#e74c3c;--warn:#f39c12;--ok:#27ae60;--muted:#888;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#222;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:14px 28px;display:flex;align-items:center;gap:16px;}
+  .topbar h1{font-size:17px;font-weight:600;}
+  .topbar a{margin-left:auto;font-size:13px;color:var(--accent);text-decoration:none;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px;}
+  .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:24px;flex-wrap:wrap;}
+  select,button{padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:13px;background:#fff;cursor:pointer;}
+  button.primary{background:var(--accent);color:#fff;border:none;font-weight:600;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px;}
+  .card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .card .val{font-size:32px;font-weight:700;margin:6px 0 2px;}
+  .card .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .card .sub{font-size:12px;margin-top:4px;}
+  .verdict-band{border-radius:12px;padding:14px 20px;font-size:14px;font-weight:600;margin-bottom:24px;display:flex;align-items:center;gap:10px;}
+  .verdict-band.Low{background:#eafaf1;color:#1a7a42;}
+  .verdict-band.Medium{background:#fef9e7;color:#9a6c00;}
+  .verdict-band.High{background:#fef0e7;color:#c0470a;}
+  .verdict-band.Critical{background:#fdecea;color:#b71c1c;}
+  .section-title{font-size:14px;font-weight:600;margin-bottom:12px;color:#444;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;}
+  @media(max-width:680px){.two-col{grid-template-columns:1fr;}}
+  .panel{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .bar-row .name{width:110px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#555;}
+  .bar-track{flex:1;background:#f0f0f0;border-radius:4px;height:10px;}
+  .bar-fill{height:10px;border-radius:4px;background:var(--accent);}
+  .bar-val{font-size:12px;color:#555;min-width:24px;text-align:right;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid #f0f0f0;}
+  td{padding:9px 10px;border-bottom:1px solid #f5f5f5;}
+  tr:hover td{background:#fafafa;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.Critical{background:#fdecea;color:#b71c1c;}
+  .badge.High{background:#fef0e7;color:#c0470a;}
+  .badge.Medium{background:#fef9e7;color:#9a6c00;}
+  .badge.Low{background:#eafaf1;color:#1a7a42;}
+  .empty{padding:40px;text-align:center;color:var(--muted);font-size:14px;}
+  .loading{text-align:center;padding:60px;color:var(--muted);}
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0;}
+  .gauge-num{font-size:52px;font-weight:800;line-height:1;}
+  .gauge-lbl{font-size:13px;color:var(--muted);margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-size:20px;">♻️</span>
+  <h1>Rework &amp; Churn Index</h1>
+  <a href="dashboard.html">← Dashboard</a>
+</div>
+
+<div class="wrap">
+  <div class="toolbar">
+    <select id="projectSel"><option value="">Select project…</option></select>
+    <button class="primary" onclick="load()">Analyse</button>
+  </div>
+
+  <div id="content" class="loading">Select a project and click Analyse.</div>
+</div>
+
+<script>
+const API = '';
+
+async function apiFetch(path){
+  const r = await fetch(API+path,{credentials:'include'});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Load projects
+apiFetch('/api/jira/projects').then(d=>{
+  const sel = document.getElementById('projectSel');
+  (d.projects||[]).forEach(p=>{
+    const o = document.createElement('option');
+    o.value = p.key; o.textContent = `${p.key} — ${p.name}`;
+    sel.appendChild(o);
+  });
+}).catch(()=>{});
+
+async function load(){
+  const pk = document.getElementById('projectSel').value;
+  if(!pk){alert('Please select a project');return;}
+  document.getElementById('content').innerHTML='<div class="loading">Analysing churn…</div>';
+  try{
+    const d = await apiFetch(`/api/churn/${pk}`);
+    render(d);
+  }catch(e){
+    document.getElementById('content').innerHTML=`<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function verdictColor(v){
+  return {Low:'#27ae60',Medium:'#f39c12',High:'#e67e22',Critical:'#e74c3c'}[v]||'#888';
+}
+
+function render(d){
+  const maxReopens = Math.max(1,...(d.by_assignee||[]).map(x=>x.reopens));
+  const maxType    = Math.max(1,...(d.by_type||[]).map(x=>x.count));
+
+  const assigneeBars = (d.by_assignee||[]).slice(0,8).map(x=>`
+    <div class="bar-row">
+      <div class="name" title="${x.assignee}">${x.assignee}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.reopens/maxReopens*100)}%"></div></div>
+      <div class="bar-val">${x.reopens}</div>
+    </div>`).join('');
+
+  const typeBars = (d.by_type||[]).slice(0,6).map(x=>`
+    <div class="bar-row">
+      <div class="name">${x.type}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.count/maxType*100)}%;background:#f39c12"></div></div>
+      <div class="bar-val">${x.count}</div>
+    </div>`).join('');
+
+  const rows = (d.churned_issues||[]).slice(0,20).map(i=>`
+    <tr>
+      <td><b>${i.key}</b></td>
+      <td>${i.summary.substring(0,60)}${i.summary.length>60?'…':''}</td>
+      <td>${i.assignee}</td>
+      <td>${i.issue_type}</td>
+      <td><span class="badge ${i.priority}">${i.priority}</span></td>
+      <td><b>${i.reopen_count || (i.hours_after_resolve ? '1+' : '1')}</b></td>
+    </tr>`).join('');
+
+  document.getElementById('content').innerHTML=`
+    <div class="verdict-band ${d.verdict}">
+      <span style="font-size:20px;">${{Low:'✅',Medium:'⚠️',High:'🔶',Critical:'🚨'}[d.verdict]}</span>
+      Churn verdict: <span>${d.verdict}</span> — ${d.verdict==='Low'?'Healthy delivery, minimal rework.':d.verdict==='Medium'?'Some rework detected — monitor closely.':d.verdict==='High'?'Significant rework is hurting velocity.':'Critical churn — quality process needs immediate attention.'}
+      ${d.mock_mode?'<span style="margin-left:auto;font-size:11px;opacity:.6;">mock data</span>':''}
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="lbl">Churn Index</div>
+        <div class="val" style="color:${verdictColor(d.verdict)}">${d.churn_index}</div>
+        <div class="sub">out of 100</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Churn Rate</div>
+        <div class="val">${d.churn_rate_pct}%</div>
+        <div class="sub">of completed issues reopened</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Churned Issues</div>
+        <div class="val" style="color:#e74c3c">${d.churned_count}</div>
+        <div class="sub">out of ${d.total_done} completed</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Total Issues</div>
+        <div class="val">${d.total_issues}</div>
+        <div class="sub">in project</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-title">Reopens by Assignee</div>
+        ${assigneeBars||'<div class="empty">No churn detected.</div>'}
+      </div>
+      <div class="panel">
+        <div class="section-title">Churn by Issue Type</div>
+        ${typeBars||'<div class="empty">No churn detected.</div>'}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">Churned Issues Detail</div>
+      ${rows?`<table>
+        <thead><tr><th>Key</th><th>Summary</th><th>Assignee</th><th>Type</th><th>Priority</th><th>Reopens</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`:'<div class="empty">No churned issues found — great quality! 🎉</div>'}
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

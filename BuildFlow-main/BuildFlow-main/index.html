@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --border: #1e1e2e;
+            --accent: #6c63ff;
+            --accent2: #ff6584;
+            --text: #e8e8f0;
+            --muted: #6b6b80;
+            --success: #00d9a3;
+            --error: #ff4d6d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(40px); }
+        }
+
+        /* Glow orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .orb-1 { width: 500px; height: 500px; background: var(--accent); top: -150px; left: -150px; animation: float1 10s ease-in-out infinite; }
+        .orb-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -100px; right: -100px; animation: float2 13s ease-in-out infinite; }
+
+        @keyframes float1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(40px, 30px); } }
+        @keyframes float2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px, -40px); } }
+
+        .wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .brand-logo {
+            font-family: 'Inter', sans-serif;
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand-sub {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 60px rgba(108,99,255,0.08), 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 28px;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tab.active {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            color: var(--muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+        }
+
+        .form-group input::placeholder { color: var(--muted); opacity: 0.6; }
+
+        .btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover::after { opacity: 1; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(108,99,255,0.35); }
+        .btn:active { transform: translateY(0); }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 18px;
+            display: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .message.error {
+            background: rgba(255,77,109,0.1);
+            color: var(--error);
+            border: 1px solid rgba(255,77,109,0.2);
+            display: block;
+        }
+
+        .message.success {
+            background: rgba(0,217,163,0.1);
+            color: var(--success);
+            border: 1px solid rgba(0,217,163,0.2);
+            display: block;
+        }
+
+        #registerForm { display: none; }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="wrapper">
+        <div class="brand">
+            <div class="brand-logo">Build Flow</div>
+            <div class="brand-sub">Project Risk Intelligence</div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <div class="tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+                <div class="tab" id="tab-register" onclick="switchTab('register')">Register</div>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" placeholder="your_username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" id="loginBtn">LOGIN →</button>
+            </form>
+
+            <form id="registerForm" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="your_username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="regEmail" placeholder="you@company.com" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="regPassword" placeholder="Min 6 characters" required autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="regConfirm" placeholder="Repeat password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn" id="regBtn">CREATE ACCOUNT →</button>
+            </form>
+        </div>
+
+        <div class="footer">Build Flow · Jira Risk Intelligence</div>
+    </div>
+
+    <script>
+        // Keep login and app pages on the same host (localhost) for stable session cookies.
+        if (window.location.hostname === '127.0.0.1') {
+            const target = `http://localhost${window.location.port ? `:${window.location.port}` : ''}${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.location.replace(target);
+        }
+        const API_BASE = window.location.origin + '/api';
+
+        function switchTab(tab) {
+            document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+            document.getElementById('tab-login').className = 'tab' + (tab === 'login' ? ' active' : '');
+            document.getElementById('tab-register').className = 'tab' + (tab === 'register' ? ' active' : '');
+            document.getElementById('message').className = 'message';
+        }
+
+        function showMessage(text, type) {
+            const el = document.getElementById('message');
+            el.textContent = text;
+            el.className = `message ${type}`;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true; btn.textContent = 'LOGGING IN...';
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: document.getElementById('loginUsername').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showMessage('✓ Authenticated. Redirecting...', 'success');
+                    setTimeout(() => window.location.href = '/dashboard.html', 800);
+                } else {
+                    showMessage(data.error || 'Login failed', 'error');
+                    btn.disabled = false; btn.textContent = 'LOGIN →';
+                }
+            } catch (err) {
+                showMessage('Connection error: ' + err.message, 'error');
+                btn.disabled = false; btn.textContent = 'LOGIN →';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirm').value;
+            if (password !== confirm) { showMessage('Passwords do not match', 'error'); return; }
+
+            const btn = document.getElementById('regBtn');
+            btn.disabled = true; btn.textContent = 'CREATING...';
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: document.getElementById('regUsername').value,
+                        email: document.getElementById('regEmail').value,
+                        password
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showMessage('✓ Account created! Redirecting...', 'success');
+                    setTimeout(() => window.location.href = '/dashboard.html', 800);
+                } else {
+                    showMessage(data.error || 'Registration failed', 'error');
+                    btn.disabled = false; btn.textContent = 'CREATE ACCOUNT →';
+                }
+            } catch (err) {
+                showMessage('Connection error: ' + err.message, 'error');
+                btn.disabled = false; btn.textContent = 'CREATE ACCOUNT →';
+            }
+        }
+
+        // Auto-redirect if already logged in
+        fetch(`${API_BASE}/auth/me`, { credentials: 'include' }).then(r => { if (r.ok) window.location.href = '/dashboard.html'; }).catch(() => {});
+    </script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dependency Map — BuildFlow</title>
+<link rel="stylesheet" href="uncia.css"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#222;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:14px 28px;display:flex;align-items:center;gap:16px;}
+  .topbar h1{font-size:17px;font-weight:600;}
+  .topbar a{margin-left:auto;font-size:13px;color:#6c63ff;text-decoration:none;}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px;}
+  .toolbar{display:flex;gap:10px;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;}
+  .proj-tags{display:flex;flex-wrap:wrap;gap:8px;flex:1;}
+  .proj-tag{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #ddd;border-radius:20px;padding:5px 12px;font-size:12px;}
+  .proj-tag .rm{cursor:pointer;color:#aaa;font-size:14px;line-height:1;}
+  .proj-tag .rm:hover{color:#e74c3c;}
+  select,button,input{padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:13px;background:#fff;cursor:pointer;}
+  button.primary{background:#6c63ff;color:#fff;border:none;font-weight:600;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+  .stat{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+  .stat .v{font-size:28px;font-weight:700;margin:4px 0 2px;}
+  .stat .l{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px;}
+  #graph-wrap{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;position:relative;}
+  #graph{width:100%;height:560px;}
+  .legend{position:absolute;bottom:14px;left:14px;background:rgba(255,255,255,.92);border-radius:8px;padding:10px 14px;font-size:12px;border:1px solid #eee;}
+  .legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+  .tooltip{position:fixed;background:#1a1a2e;color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;pointer-events:none;display:none;max-width:260px;z-index:1000;line-height:1.6;}
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .filter-btn{padding:5px 12px;border-radius:20px;border:1px solid #ddd;font-size:12px;cursor:pointer;background:#fff;}
+  .filter-btn.active{background:#6c63ff;color:#fff;border-color:#6c63ff;}
+  .loading{text-align:center;padding:60px;color:#888;}
+  #blockers-panel{margin-top:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #f0f0f0;}
+  td{padding:9px 10px;border-bottom:1px solid #f5f5f5;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.Critical,.badge.Highest{background:#fdecea;color:#b71c1c;}
+  .badge.High{background:#fef0e7;color:#c0470a;}
+  .badge.Medium{background:#fef9e7;color:#9a6c00;}
+  .badge.Low,.badge.Lowest{background:#eafaf1;color:#1a7a42;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-size:20px;">🕸️</span>
+  <h1>Cross-Project Dependency Map</h1>
+  <a href="dashboard.html">← Dashboard</a>
+</div>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="proj-tags" id="projTags"></div>
+    <select id="projAdd"><option value="">+ Add project</option></select>
+    <button class="primary" onclick="load()">Draw Map</button>
+  </div>
+
+  <div class="filters" id="filters" style="display:none">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All links</button>
+    <button class="filter-btn" onclick="setFilter('blocks',this)">Blockers only</button>
+    <button class="filter-btn" onclick="setFilter('cross',this)">Cross-project only</button>
+  </div>
+
+  <div class="stats" id="stats" style="display:none">
+    <div class="stat"><div class="l">Nodes</div><div class="v" id="sNodes">—</div></div>
+    <div class="stat"><div class="l">Total Links</div><div class="v" id="sEdges">—</div></div>
+    <div class="stat"><div class="l">Cross-Project</div><div class="v" id="sCross" style="color:#e67e22">—</div></div>
+    <div class="stat"><div class="l">Blocking</div><div class="v" id="sBlock" style="color:#e74c3c">—</div></div>
+  </div>
+
+  <div id="graph-wrap" style="display:none">
+    <svg id="graph"></svg>
+    <div class="legend">
+      <div class="legend-row"><div class="legend-dot" style="background:#6c63ff"></div> Normal link</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#e74c3c"></div> Blocker</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#f39c12"></div> Cross-project</div>
+    </div>
+  </div>
+  <div id="graph-placeholder" class="loading">Select projects and click Draw Map.</div>
+
+  <div id="blockers-panel"></div>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const API='';
+let allNodes=[], allEdges=[], filterMode='all';
+const selectedProjects = new Set();
+const projectColors={};
+const PALETTE=['#6c63ff','#e67e22','#27ae60','#e74c3c','#2980b9','#8e44ad'];
+
+async function apiFetch(path){
+  const r=await fetch(API+path,{credentials:'include'});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+apiFetch('/api/jira/projects').then(d=>{
+  const sel=document.getElementById('projAdd');
+  (d.projects||[]).forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.key; o.textContent=`${p.key} — ${p.name}`;
+    sel.appendChild(o);
+  });
+  // Auto-select first 2
+  (d.projects||[]).slice(0,2).forEach(p=>addProject(p.key));
+}).catch(()=>{});
+
+document.getElementById('projAdd').addEventListener('change',function(){
+  if(this.value){addProject(this.value); this.value='';}
+});
+
+function addProject(key){
+  if(!key||selectedProjects.has(key))return;
+  selectedProjects.add(key);
+  if(!projectColors[key]) projectColors[key]=PALETTE[Object.keys(projectColors).length%PALETTE.length];
+  renderTags();
+}
+
+function removeProject(key){
+  selectedProjects.delete(key);
+  renderTags();
+}
+
+function renderTags(){
+  const wrap=document.getElementById('projTags');
+  wrap.innerHTML=[...selectedProjects].map(k=>`
+    <div class="proj-tag">
+      <span style="width:8px;height:8px;border-radius:50%;background:${projectColors[k]};display:inline-block"></span>
+      ${k}
+      <span class="rm" onclick="removeProject('${k}')">×</span>
+    </div>`).join('');
+}
+
+function setFilter(mode,btn){
+  filterMode=mode;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  drawGraph(allNodes,allEdges);
+}
+
+async function load(){
+  if(!selectedProjects.size){alert('Add at least one project');return;}
+  document.getElementById('graph-placeholder').innerHTML='<div class="loading">Fetching dependency data…</div>';
+  document.getElementById('graph-placeholder').style.display='block';
+  document.getElementById('graph-wrap').style.display='none';
+  document.getElementById('stats').style.display='none';
+  document.getElementById('filters').style.display='none';
+
+  const keys=[...selectedProjects].join(',');
+  try{
+    const d=await apiFetch(`/api/dependency?projects=${keys}`);
+    allNodes=d.nodes||[];
+    allEdges=d.edges||[];
+
+    document.getElementById('sNodes').textContent=d.total_nodes;
+    document.getElementById('sEdges').textContent=d.total_edges;
+    document.getElementById('sCross').textContent=d.cross_proj_edges;
+    document.getElementById('sBlock').textContent=d.blocking_count;
+
+    document.getElementById('stats').style.display='grid';
+    document.getElementById('filters').style.display='flex';
+    document.getElementById('graph-wrap').style.display='block';
+    document.getElementById('graph-placeholder').style.display='none';
+
+    drawGraph(allNodes, allEdges);
+    renderBlockersTable(allEdges, allNodes);
+  }catch(e){
+    document.getElementById('graph-placeholder').innerHTML=`<div class="loading">Error: ${e.message}</div>`;
+  }
+}
+
+function filteredEdges(edges){
+  if(filterMode==='blocks') return edges.filter(e=>e.type&&e.type.includes('block'));
+  if(filterMode==='cross')  return edges.filter(e=>e.cross_proj);
+  return edges;
+}
+
+function drawGraph(nodes, edges){
+  const svg=d3.select('#graph');
+  svg.selectAll('*').remove();
+  const W=document.getElementById('graph').clientWidth||900;
+  const H=560;
+  svg.attr('viewBox',`0 0 ${W} ${H}`);
+
+  const visEdges=filteredEdges(edges);
+
+  // Build adjacency set
+  const nodeIds=new Set(nodes.map(n=>n.id));
+  const activeIds=new Set();
+  visEdges.forEach(e=>{activeIds.add(e.source);activeIds.add(e.target);});
+  // If no edges show all nodes
+  const visNodes=visEdges.length>0?nodes.filter(n=>activeIds.has(n.id)):nodes;
+
+  const sim=d3.forceSimulation(visNodes)
+    .force('link',d3.forceLink(visEdges).id(d=>d.id).distance(90))
+    .force('charge',d3.forceManyBody().strength(-220))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide(28));
+
+  const g=svg.append('g');
+
+  svg.call(d3.zoom().scaleExtent([.3,3]).on('zoom',e=>g.attr('transform',e.transform)));
+
+  // Arrowhead markers
+  const defs=svg.append('defs');
+  [{id:'arr-normal',color:'#6c63ff'},{id:'arr-block',color:'#e74c3c'},{id:'arr-cross',color:'#f39c12'}].forEach(m=>{
+    defs.append('marker').attr('id',m.id).attr('viewBox','0 -5 10 10').attr('refX',22).attr('refY',0)
+      .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+      .append('path').attr('d','M0,-5L10,0L0,5').attr('fill',m.color);
+  });
+
+  function edgeColor(e){
+    if(e.type&&e.type.includes('block')) return '#e74c3c';
+    if(e.cross_proj) return '#f39c12';
+    return '#6c63ff';
+  }
+  function edgeMarker(e){
+    if(e.type&&e.type.includes('block')) return 'url(#arr-block)';
+    if(e.cross_proj) return 'url(#arr-cross)';
+    return 'url(#arr-normal)';
+  }
+
+  const link=g.append('g').selectAll('line').data(visEdges).join('line')
+    .attr('stroke',d=>edgeColor(d)).attr('stroke-width',d=>d.cross_proj?2:1.5)
+    .attr('stroke-opacity',.7).attr('marker-end',d=>edgeMarker(d));
+
+  const node=g.append('g').selectAll('g').data(visNodes).join('g')
+    .attr('cursor','pointer')
+    .call(d3.drag().on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
+
+  node.append('circle').attr('r',18)
+    .attr('fill',d=>projectColors[d.project]||'#6c63ff').attr('fill-opacity',.15)
+    .attr('stroke',d=>projectColors[d.project]||'#6c63ff').attr('stroke-width',2);
+
+  node.append('text').attr('text-anchor','middle').attr('dy','0.35em')
+    .attr('font-size','9px').attr('fill','#333').attr('font-weight','600')
+    .text(d=>d.id.length>9?d.id.substring(0,9):d.id);
+
+  const tip=document.getElementById('tip');
+  node.on('mousemove',(e,d)=>{
+    tip.style.display='block';
+    tip.style.left=(e.clientX+14)+'px';
+    tip.style.top=(e.clientY-10)+'px';
+    tip.innerHTML=`<b>${d.id}</b><br>${d.label}<br><span style="opacity:.7">${d.project} · ${d.status} · ${d.priority}</span><br><span style="opacity:.6">👤 ${d.assignee}</span>`;
+  }).on('mouseleave',()=>{tip.style.display='none';});
+
+  sim.on('tick',()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+}
+
+function renderBlockersTable(edges, nodes){
+  const blockers=edges.filter(e=>e.type&&e.type.includes('block'));
+  const nodeMap={};
+  nodes.forEach(n=>nodeMap[n.id]=n);
+  const panel=document.getElementById('blockers-panel');
+  if(!blockers.length){panel.innerHTML='';return;}
+  panel.innerHTML=`
+    <div style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-top:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e74c3c;">🚨 Active Blockers (${blockers.length})</div>
+      <table>
+        <thead><tr><th>Source</th><th>Relationship</th><th>Target</th><th>Cross-project?</th></tr></thead>
+        <tbody>${blockers.map(e=>`
+          <tr>
+            <td><b>${typeof e.source==='object'?e.source.id:e.source}</b>${nodeMap[typeof e.source==='object'?e.source.id:e.source]?` <span style="font-size:11px;color:#888">— ${(nodeMap[typeof e.source==='object'?e.source.id:e.source].label||'').substring(0,35)}</span>`:''}</td>
+            <td><span class="badge Critical">${e.type}</span></td>
+            <td><b>${typeof e.target==='object'?e.target.id:e.target}</b></td>
+            <td>${e.cross_proj?'<span style="color:#e67e22;font-weight:600;">Yes ⚠️</span>':'No'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+</script>
+</body>
+</html>

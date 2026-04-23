@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Client Shares</title>
+    <link rel="stylesheet" href="/uncia.css">
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Client Share Links</div>
+            <div class="page-subtitle">Create read-only project links for external stakeholders</div>
+        </div>
+        <div class="content">
+            <div class="card">
+                <div class="card-title">Create Share Link</div>
+                <div class="controls">
+                    <select id="projectSelect" class="select">
+                        <option value="">— Select project —</option>
+                    </select>
+                    <input id="labelInput" class="form-input" style="min-width:260px" placeholder="Label (optional)">
+                    <input id="expiresInput" class="form-input" style="width:130px" type="number" min="1" placeholder="Days">
+                </div>
+                <div class="controls">
+                    <label><input id="showRisks" type="checkbox" checked> Include risks</label>
+                    <label><input id="showTeam" type="checkbox"> Include team names</label>
+                    <button class="btn btn-primary" onclick="createShare()">Create Link</button>
+                </div>
+                <div id="msg" class="msg"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Existing Share Links</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Label</th>
+                                <th>Expires</th>
+                                <th>URL</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shareRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        function showMsg(text, type = 'info') {
+            const el = document.getElementById('msg');
+            el.textContent = text;
+            el.className = `msg ${type}`;
+        }
+
+        function fullShareUrl(path) {
+            return `${window.location.origin}${path}`;
+        }
+
+        async function init() {
+            const user = await initPage('shares');
+            if (!user) return;
+            await loadProjects('projectSelect', null);
+            await listShares();
+        }
+
+        async function createShare() {
+            const project_key = document.getElementById('projectSelect').value;
+            if (!project_key) {
+                showMsg('Please select a project.', 'error');
+                return;
+            }
+            const payload = {
+                project_key,
+                label: document.getElementById('labelInput').value.trim() || `Shared - ${project_key}`,
+                show_risks: document.getElementById('showRisks').checked,
+                show_team: document.getElementById('showTeam').checked
+            };
+            const expires = document.getElementById('expiresInput').value.trim();
+            if (expires) payload.expires_days = Number(expires);
+
+            try {
+                const res = await fetch(`${API_BASE}/client/share`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to create share');
+                const url = fullShareUrl(data.share.share_url);
+                await navigator.clipboard.writeText(url);
+                showMsg(`Share created and copied: ${url}`, 'success');
+                await listShares();
+            } catch (err) {
+                showMsg(err.message, 'error');
+            }
+        }
+
+        async function listShares() {
+            const tbody = document.getElementById('shareRows');
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Loading...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/client/shares`, { credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to load shares');
+                const rows = data.shares || [];
+                tbody.innerHTML = rows.length ? rows.map(s => {
+                    const url = fullShareUrl(s.share_url);
+                    return `
+                        <tr>
+                            <td>${s.project_key}</td>
+                            <td>${s.label || ''}</td>
+                            <td>${s.expires_at ? new Date(s.expires_at).toLocaleDateString() : 'Never'}</td>
+                            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="copyShare('${url}')">Copy</button>
+                                <button class="btn btn-danger" onclick="deleteShare('${s.token}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') : '<tr><td colspan="5" class="empty-state">No share links yet.</td></tr>';
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${err.message}</td></tr>`;
+            }
+        }
+
+        async function copyShare(url) {
+            await navigator.clipboard.writeText(url);
+            showMsg('Share URL copied to clipboard.', 'success');
+        }
+
+        async function deleteShare(token) {
+            try {
+                const res = await fetch(`${API_BASE}/client/share/${token}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to delete share');
+                showMsg('Share deleted.', 'success');
+                await listShares();
+            } catch (err) {
+                showMsg(err.message, 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

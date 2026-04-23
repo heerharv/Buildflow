@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Specs & PRDs</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <style>
+        .specs-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            height: calc(100vh - 140px);
+            align-items: flex-start;
+        }
+        @media (max-width: 900px) {
+            .specs-layout { grid-template-columns: 1fr; height: auto; }
+        }
+
+        /* ── Sidebar List ── */
+        .specs-list-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .specs-list-header {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .spec-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            margin-bottom: 8px;
+        }
+        .spec-item:hover { background: var(--bg); }
+        .spec-item.active {
+            background: rgba(108, 99, 255, 0.08);
+            border-color: rgba(108, 99, 255, 0.2);
+        }
+        .spec-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .spec-meta {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+        }
+        .spec-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+        
+        /* ── Editor View ── */
+        .spec-editor-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .editor-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg);
+        }
+        .editor-title-input {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            width: 100%;
+            outline: none;
+            padding: 4px;
+        }
+        .editor-title-input:focus { border-bottom: 1px solid var(--accent); }
+        
+        .editor-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .editor-textarea {
+            flex: 1;
+            width: 100%;
+            background: var(--surface);
+            border: none;
+            padding: 24px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: var(--text2);
+            line-height: 1.7;
+            resize: none;
+            outline: none;
+        }
+        
+        /* ── Buttons ── */
+        
+        .btn-sub {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-sub:hover { border-color: var(--muted); }
+
+        /* ── Tickets Breakdown Panel ── */
+        .tickets-panel {
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            padding: 24px;
+            max-height: 40%;
+            overflow-y: auto;
+            display: none;
+        }
+        .tickets-header {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ticket-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .ticket-head {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .ticket-type {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--accent);
+        }
+        .ticket-type.Epic { background: rgba(255, 140, 66, 0.1); color: #ff8c42; }
+        .ticket-type.Task { background: rgba(0, 217, 163, 0.1); color: var(--success); }
+        
+        .ticket-title { font-weight: 600; font-size: 14px; }
+        .ticket-desc { font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+        .ticket-ac {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #a0a0b8;
+            white-space: pre-wrap;
+        }
+
+        .empty-specs {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">📝 Specs & PRDs</div>
+            <div class="page-subtitle">From Written Spec to Agent-Ready Tasks</div>
+        </div>
+        
+        <div class="content">
+            <div class="controls" style="margin-bottom: 20px;">
+                <select id="projectSelect" class="select" onchange="loadSpecsList()">
+                    <option value="">— Select a project —</option>
+                </select>
+            </div>
+
+            <div class="specs-layout">
+                <!-- Sidebar List -->
+                <div class="specs-list-card">
+                    <div class="specs-list-header">
+                        <span>Documents</span>
+                    </div>
+                    <div id="specsList">
+                        <div class="empty-specs">No projects selected.</div>
+                    </div>
+                </div>
+
+                <!-- Editor -->
+                <div class="spec-editor-card" id="editorContainer" style="display:none;">
+                    <div class="editor-header">
+                        <div style="flex:1; margin-right:16px;">
+                            <input type="text" id="specTitle" class="editor-title-input" placeholder="PRD Title">
+                        </div>
+                        <div class="editor-actions">
+                            <button class="btn-sub" onclick="saveSpec()">💾 Save Draft</button>
+                            <button class="btn-brain" id="generateTicketsBtn" onclick="generateTickets()">⚙️ Extract to Tickets</button>
+                        </div>
+                    </div>
+                    
+                    <textarea id="specContent" class="editor-textarea" placeholder="Markdown content goes here..."></textarea>
+                    
+                    <!-- Tickets Panel -->
+                    <div class="tickets-panel" id="ticketsPanel">
+                        <div class="tickets-header" style="justify-content: space-between;">
+                            <span>🤖 Generated Engineering Tasks</span>
+                            <button class="btn-brain" id="pushJiraBtn" onclick="pushTickets()" style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">
+                                🚀 Push to Jira Backlog
+                            </button>
+                        </div>
+                        <div id="ticketsList"></div>
+                    </div>
+                </div>
+                
+                <!-- Blank State -->
+                <div class="spec-editor-card" id="blankContainer" style="align-items:center; justify-content:center; padding: 40px; text-align:center;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                    <h3 style="font-family:'Inter', sans-serif; margin-bottom: 8px;">No Spec Selected</h3>
+                    <p style="color:var(--muted); font-size:13px; max-width:300px;">
+                        Select a document from the left, or generate a new PRD from the <a href="/insights.html" style="color:var(--accent);">Insights Dashboard</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        let currentProject = '';
+        let currentSpecId = null;
+
+        async function init() {
+            const user = await initPage('specs');
+            if (!user) return;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const projParam = urlParams.get('project');
+            const specParam = urlParams.get('spec');
+
+            const projects = await loadProjects('projectSelect', () => {});
+            
+            if (projParam) {
+                document.getElementById('projectSelect').value = projParam;
+                currentProject = projParam;
+            } else if (user.default_project) {
+                document.getElementById('projectSelect').value = user.default_project;
+                currentProject = user.default_project;
+            } else if (projects && projects.length > 0) {
+                currentProject = projects[0].key;
+            }
+
+            if (currentProject) {
+                await loadSpecsList();
+                if (specParam) {
+                    await loadSpec(specParam);
+                }
+            }
+        }
+
+        async function loadSpecsList() {
+            currentProject = document.getElementById('projectSelect').value;
+            if (!currentProject) return;
+
+            try {
+                const r = await fetch(`${API_BASE}/specs/${currentProject}`, { credentials: 'include' });
+                if (!r.ok) return;
+                const data = await r.json();
+                
+                const list = document.getElementById('specsList');
+                if (!data.specs || data.specs.length === 0) {
+                    list.innerHTML = `<div class="empty-specs" style="padding:20px;">No PRDs yet.<br><br>Generate one from the AI Insights page.</div>`;
+                    return;
+                }
+
+                list.innerHTML = data.specs.map(s => `
+                    <div class="spec-item ${s.id == currentSpecId ? 'active' : ''}" onclick="loadSpec(${s.id})">
+                        <div class="spec-title">${escapeHtml(s.title)}</div>
+                        <div class="spec-meta">
+                            <span>${new Date(s.created_at).toLocaleDateString()}</span>
+                            <span class="spec-status">${s.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (e) {
+                console.error("Failed to load specs", e);
+            }
+        }
+
+        async function loadSpec(id) {
+            currentSpecId = id;
+            document.getElementById('blankContainer').style.display = 'none';
+            document.getElementById('editorContainer').style.display = 'flex';
+            document.getElementById('ticketsPanel').style.display = 'none';
+            
+            // update list highlight
+            loadSpecsList();
+
+            try {
+                const r = await fetch(`${API_BASE}/specs/${id}`, { credentials: 'include' });
+                if (!r.ok) throw new Error("Failed to fetch spec");
+                const data = await r.json();
+                
+                document.getElementById('specTitle').value = data.spec.title;
+                document.getElementById('specContent').value = data.spec.content;
+
+                if (data.tickets && data.tickets.length > 0) {
+                    renderTickets(data.tickets);
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function saveSpec() {
+            if (!currentSpecId) return;
+            const title = document.getElementById('specTitle').value;
+            const content = document.getElementById('specContent').value;
+            
+            try {
+                const r = await fetch(`${API_BASE}/specs/${currentSpecId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+                if (r.ok) {
+                    loadSpecsList();
+                }
+            } catch (e) {
+                alert("Failed to save draft");
+            }
+        }
+
+        async function generateTickets() {
+            if (!currentSpecId) return;
+            
+            // Auto save first
+            await saveSpec();
+            
+            const btn = document.getElementById('generateTicketsBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Analyzing PRD...';
+            
+            try {
+                const r = await fetch(`${API_BASE}/brain/generate-tickets`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spec_id: currentSpecId })
+                });
+                
+                if (!r.ok) {
+                    const err = await r.json();
+                    throw new Error(err.error || "Failed finding tickets");
+                }
+                
+                const data = await r.json();
+                renderTickets(data.tickets);
+                
+            } catch (e) {
+                alert("Generation error: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⚙️ Extract to Tickets';
+            }
+        }
+
+        async function pushTickets() {
+            if (!currentSpecId) return;
+
+            const btn = document.getElementById('pushJiraBtn');
+            btn.disabled = true;
+            btn.textContent = '🚀 Pushing...';
+
+            try {
+                const r = await fetch(`${API_BASE}/specs/${currentSpecId}/push`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                if (!r.ok) {
+                    const err = await r.json();
+                    throw new Error(err.error || "Failed to push tickets");
+                }
+                
+                const data = await r.json();
+                if (data.tickets) {
+                    renderTickets(data.tickets);
+                } else {
+                    alert(data.message || 'Complete');
+                }
+                
+            } catch (e) {
+                alert("Push error: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Push to Jira Backlog';
+            }
+        }
+
+        function renderTickets(tickets) {
+            document.getElementById('ticketsPanel').style.display = 'block';
+            
+            // Check if all tickets pushed
+            const allPushed = tickets.every(t => t.status === 'Pushed');
+            const btn = document.getElementById('pushJiraBtn');
+            if (allPushed) {
+                btn.style.display = 'none';
+            } else {
+                btn.style.display = 'block';
+            }
+
+            document.getElementById('ticketsList').innerHTML = tickets.map(t => `
+                <div class="ticket-item">
+                    <div class="ticket-head" style="justify-content: space-between;">
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <span class="ticket-type ${t.type}">${t.type}</span>
+                            <span class="ticket-title">${escapeHtml(t.title)}</span>
+                        </div>
+                        <div>
+                            ${t.jira_key ? `<span style="font-family:'Inter', sans-serif; font-size:11px; padding:2px 6px; background:var(--success-light, rgba(0,217,163,0.1)); color:var(--success); border-radius:4px;">✅ ${t.jira_key}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="ticket-desc">${escapeHtml(t.description)}</div>
+                    ${t.acceptance_criteria ? `<div class="ticket-ac">${escapeHtml(t.acceptance_criteria)}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        init();
+    </script>
+</body>
+</html>

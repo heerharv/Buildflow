@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Kanban</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <style>
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .column {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .col-header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .col-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .col-count {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .col-todo .col-title { color: var(--muted); }
+        .col-todo .col-count { color: var(--muted); }
+        .col-progress .col-title { color: #4ea1ff; }
+        .col-progress .col-count { color: #4ea1ff; }
+        .col-done .col-title { color: var(--success); }
+        .col-done .col-count { color: var(--success); }
+        .col-todo { border-top: 2px solid var(--muted); }
+        .col-progress { border-top: 2px solid #4ea1ff; }
+        .col-done { border-top: 2px solid var(--success); }
+
+        .col-body {
+            padding: 12px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .kanban-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            transition: all 0.15s;
+        }
+
+        .kanban-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+
+        .kanban-card.overdue {
+            border-left: 2px solid var(--error);
+        }
+
+        .card-key {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--accent);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-summary {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .card-assignee {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .mini-avatar {
+            width: 18px; height: 18px;
+            border-radius: 4px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .type-badge {
+            font-family: 'Inter', sans-serif;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .due-tag {
+            font-family: 'Inter', sans-serif;
+            font-size: 9px;
+            color: var(--error);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-chip.active, .filter-chip:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Kanban Board</div>
+            <div class="page-subtitle">Issue Workflow Visualization</div>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <select id="projectSelect" class="select">
+                    <option value="">— Select a project —</option>
+                </select>
+                <div class="filter-row" id="filterRow" style="display:none;">
+                    <span style="font-family:'Inter', sans-serif;font-size:11px;color:var(--muted);">Priority:</span>
+                    <span class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All</span>
+                    <span class="filter-chip" data-filter="Critical" onclick="setFilter('Critical',this)">Critical</span>
+                    <span class="filter-chip" data-filter="High" onclick="setFilter('High',this)">High</span>
+                    <span class="filter-chip" data-filter="Medium" onclick="setFilter('Medium',this)">Medium</span>
+                </div>
+            </div>
+
+            <div id="loadingState" class="loading-state" style="display:none;">
+                <div class="spinner"></div>Loading board...
+            </div>
+
+            <div id="boardWrap" style="display:none;">
+                <div class="board">
+                    <div class="column col-todo">
+                        <div class="col-header">
+                            <span class="col-title">To Do</span>
+                            <span class="col-count" id="count-todo">0</span>
+                        </div>
+                        <div class="col-body" id="col-todo"></div>
+                    </div>
+                    <div class="column col-progress">
+                        <div class="col-header">
+                            <span class="col-title">In Progress</span>
+                            <span class="col-count" id="count-progress">0</span>
+                        </div>
+                        <div class="col-body" id="col-progress"></div>
+                    </div>
+                    <div class="column col-done">
+                        <div class="col-header">
+                            <span class="col-title">Done</span>
+                            <span class="col-count" id="count-done">0</span>
+                        </div>
+                        <div class="col-body" id="col-done"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        let boardData = {};
+        let activeFilter = 'all';
+
+        async function init() {
+            const user = await initPage('kanban');
+            if (!user) return;
+            await loadProjects('projectSelect', loadBoard);
+        }
+
+        async function loadBoard() {
+            const project = document.getElementById('projectSelect').value;
+            if (!project) return;
+
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('boardWrap').style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/jira/board/${project}`);
+                if (!res.ok) throw new Error('Failed to load board');
+                const data = await res.json();
+                boardData = data.board;
+
+                document.getElementById('filterRow').style.display = 'flex';
+                renderBoard();
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('boardWrap').style.display = 'block';
+            } catch (err) {
+                document.getElementById('loadingState').style.display = 'none';
+                alert('Error: ' + err.message);
+            }
+        }
+
+        function setFilter(f, el) {
+            activeFilter = f;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const cols = { 'To Do': 'todo', 'In Progress': 'progress', 'Done': 'done' };
+            for (const [status, colId] of Object.entries(cols)) {
+                let cards = boardData[status] || [];
+                if (activeFilter !== 'all') cards = cards.filter(c => c.priority === activeFilter);
+                document.getElementById(`count-${colId}`).textContent = cards.length;
+                document.getElementById(`col-${colId}`).innerHTML = cards.length
+                    ? cards.map(renderCard).join('')
+                    : `<div style="text-align:center;padding:30px;font-family:'Inter', sans-serif;font-size:11px;color:var(--muted);">Empty</div>`;
+            }
+        }
+
+        function renderCard(card) {
+            const priorityClass = { Critical: 'badge-critical', High: 'badge-high', Medium: 'badge-medium', Low: 'badge-low' }[card.priority] || 'badge-medium';
+            const initial = card.assignee === 'Unassigned' ? '?' : card.assignee[0].toUpperCase();
+            const overdueClass = card.is_overdue ? ' overdue' : '';
+            return `
+                <div class="kanban-card${overdueClass}">
+                    <div class="card-key">
+                        <span>${card.key}</span>
+                        <span class="type-badge">${card.type}</span>
+                    </div>
+                    <div class="card-summary">${card.summary}</div>
+                    <div class="card-footer">
+                        <div class="card-assignee">
+                            <span class="mini-avatar">${initial}</span>
+                            ${card.assignee}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            ${card.is_overdue ? '<span class="due-tag">OVERDUE</span>' : ''}
+                            <span class="badge ${priorityClass}">${card.priority}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Project Status — BuildFlow</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f6fa;color:#222;min-height:100vh;}
+  .header{background:#1a1a2e;color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .header h1{font-size:18px;font-weight:600;letter-spacing:.2px;}
+  .header .meta{font-size:12px;opacity:.6;margin-top:3px;}
+  .header .badge-live{background:#27ae60;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 20px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px;}
+  .card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .card .val{font-size:34px;font-weight:800;margin:6px 0 2px;}
+  .card .lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;}
+  .card .sub{font-size:12px;color:#aaa;margin-top:2px;}
+  .progress-section{background:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:22px;}
+  .progress-section h2{font-size:14px;font-weight:600;margin-bottom:14px;color:#444;}
+  .prog-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .prog-label{width:90px;font-size:12px;color:#666;}
+  .prog-track{flex:1;background:#f0f0f0;border-radius:6px;height:12px;}
+  .prog-fill{height:12px;border-radius:6px;transition:width .6s ease;}
+  .prog-pct{font-size:12px;color:#555;min-width:36px;text-align:right;}
+  .confidence-ring{display:flex;align-items:center;gap:20px;padding:8px 0;}
+  .ring-num{font-size:48px;font-weight:800;line-height:1;}
+  .ring-info h3{font-size:14px;font-weight:600;margin-bottom:4px;}
+  .ring-info p{font-size:12px;color:#888;line-height:1.5;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;}
+  @media(max-width:640px){.two-col{grid-template-columns:1fr;}}
+  .panel{background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .panel h2{font-size:14px;font-weight:600;margin-bottom:14px;color:#444;}
+  .risk-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5;}
+  .risk-row:last-child{border-bottom:none;}
+  .risk-key{font-size:11px;font-weight:700;color:#6c63ff;min-width:60px;}
+  .risk-sum{font-size:12px;color:#444;flex:1;line-height:1.4;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.Critical,.badge.Highest{background:#fdecea;color:#b71c1c;}
+  .badge.High{background:#fef0e7;color:#c0470a;}
+  .badge.Medium{background:#fef9e7;color:#9a6c00;}
+  .badge.Low,.badge.Lowest{background:#eafaf1;color:#1a7a42;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .bar-row .name{width:100px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#555;}
+  .bar-track{flex:1;background:#f0f0f0;border-radius:4px;height:10px;}
+  .bar-fill{height:10px;border-radius:4px;}
+  .bar-val{font-size:12px;color:#555;min-width:24px;text-align:right;}
+  .footer{text-align:center;padding:28px;font-size:12px;color:#bbb;}
+  .footer a{color:#6c63ff;text-decoration:none;}
+  .loading{text-align:center;padding:80px;color:#aaa;font-size:15px;}
+  .error-page{text-align:center;padding:80px 20px;}
+  .error-page h2{font-size:22px;font-weight:600;margin-bottom:8px;color:#333;}
+  .error-page p{color:#888;font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="root"><div class="loading">Loading project status…</div></div>
+
+<script>
+const token = window.location.pathname.split('/share/')[1];
+
+async function load(){
+  try{
+    const r=await fetch(`/api/share/${token}/data`);
+    if(!r.ok){
+      document.getElementById('root').innerHTML=`
+        <div class="error-page">
+          <h2>Link unavailable</h2>
+          <p>This share link has expired or does not exist.</p>
+        </div>`;
+      return;
+    }
+    const d=await r.json();
+    render(d);
+  }catch(e){
+    document.getElementById('root').innerHTML=`<div class="loading">Error loading data.</div>`;
+  }
+}
+
+function confidenceColor(c){
+  if(c>=75) return '#27ae60';
+  if(c>=50) return '#f39c12';
+  return '#e74c3c';
+}
+
+function render(d){
+  const compPct = d.completion_pct||0;
+  const conf    = d.confidence||0;
+  const maxPri  = Math.max(1,...Object.values(d.priority_dist||{}));
+
+  const priColors={'Critical':'#e74c3c','High':'#e67e22','Medium':'#f39c12','Low':'#27ae60'};
+
+  const priBars=Object.entries(d.priority_dist||{}).map(([k,v])=>`
+    <div class="bar-row">
+      <div class="name">${k}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxPri*100)}%;background:${priColors[k]||'#6c63ff'}"></div></div>
+      <div class="bar-val">${v}</div>
+    </div>`).join('');
+
+  const risks=(d.top_risks||[]).map(r=>`
+    <div class="risk-row">
+      <span class="risk-key">${r.key}</span>
+      <span class="risk-sum">${r.summary.substring(0,70)}${r.summary.length>70?'…':''}</span>
+      <span class="badge ${r.priority}">${r.impact}</span>
+    </div>`).join('');
+
+  const teamSection=d.team_workload?`
+    <div class="panel">
+      <h2>Team Workload</h2>
+      ${d.team_workload.map(t=>`
+        <div class="bar-row">
+          <div class="name">${t.name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(t.count/Math.max(1,...d.team_workload.map(x=>x.count))*100)}%;background:#6c63ff"></div></div>
+          <div class="bar-val">${t.count}</div>
+        </div>`).join('')}
+    </div>`:'';
+
+  document.title=`${d.project_name||d.project_key} — Project Status`;
+
+  document.getElementById('root').innerHTML=`
+    <div class="header">
+      <div>
+        <div class="header h1">📊 ${d.label||d.project_key} — Live Status</div>
+        <div class="meta">Last updated: ${d.last_updated}</div>
+      </div>
+      <span class="badge-live">● LIVE</span>
+    </div>
+
+    <div class="wrap">
+      <!-- KPI CARDS -->
+      <div class="cards">
+        <div class="card">
+          <div class="lbl">Total Issues</div>
+          <div class="val">${d.total_issues}</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Completed</div>
+          <div class="val" style="color:#27ae60">${d.completed}</div>
+          <div class="sub">${compPct}% done</div>
+        </div>
+        <div class="card">
+          <div class="lbl">In Progress</div>
+          <div class="val" style="color:#3498db">${d.in_progress}</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Overdue</div>
+          <div class="val" style="color:${d.overdue_count>0?'#e74c3c':'#27ae60'}">${d.overdue_count}</div>
+        </div>
+      </div>
+
+      <!-- PROGRESS + CONFIDENCE -->
+      <div class="two-col">
+        <div class="progress-section">
+          <h2>Sprint Progress</h2>
+          <div class="prog-row">
+            <div class="prog-label">Completed</div>
+            <div class="prog-track"><div class="prog-fill" style="width:${compPct}%;background:#27ae60"></div></div>
+            <div class="prog-pct">${compPct}%</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-label">In Progress</div>
+            <div class="prog-track"><div class="prog-fill" style="width:${d.total_issues>0?Math.round(d.in_progress/d.total_issues*100):0}%;background:#3498db"></div></div>
+            <div class="prog-pct">${d.total_issues>0?Math.round(d.in_progress/d.total_issues*100):0}%</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-label">To Do</div>
+            <div class="prog-track"><div class="prog-fill" style="width:${d.total_issues>0?Math.round(d.todo/d.total_issues*100):0}%;background:#bdc3c7"></div></div>
+            <div class="prog-pct">${d.total_issues>0?Math.round(d.todo/d.total_issues*100):0}%</div>
+          </div>
+        </div>
+
+        <div class="progress-section">
+          <h2>Delivery Confidence</h2>
+          <div class="confidence-ring">
+            <div class="ring-num" style="color:${confidenceColor(conf)}">${conf}%</div>
+            <div class="ring-info">
+              <h3>${conf>=75?'On Track 🟢':conf>=50?'At Risk 🟡':'Behind Schedule 🔴'}</h3>
+              <p>${conf>=75?'Project is progressing well. Delivery on schedule.':conf>=50?'Some delays detected. Monitoring closely.':'Significant overdue items. Immediate attention needed.'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRIORITY DIST + RISKS -->
+      <div class="two-col">
+        <div class="panel">
+          <h2>Issues by Priority</h2>
+          ${priBars||'<p style="color:#aaa;font-size:13px">No data.</p>'}
+        </div>
+        ${risks?`<div class="panel"><h2>Top Risk Items</h2>${risks}</div>`:`<div class="panel"><h2>Risk Summary</h2><p style="color:#27ae60;font-size:13px;padding:10px 0">✅ No high-risk items detected.</p></div>`}
+      </div>
+
+      ${teamSection?`<div class="two-col">${teamSection}<div></div></div>`:''}
+    </div>
+
+    <div class="footer">
+      Powered by <a href="/">BuildFlow</a> &nbsp;·&nbsp; Data refreshes on page reload
+      ${d.expires_at?`&nbsp;·&nbsp; Link expires ${new Date(d.expires_at).toLocaleDateString()}`:''}
+    </div>
+  `;
+}
+
+load();
+</script>
+</body>
+</html>

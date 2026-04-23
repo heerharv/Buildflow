@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Risk Analysis</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        .risk-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .risk-item {
+            display: flex;
+            gap: 14px;
+            padding: 14px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: all 0.15s;
+            margin-bottom: 10px;
+        }
+
+        .risk-item:hover {
+            border-color: var(--border2);
+            transform: translateX(2px);
+        }
+
+        .risk-item.impact-critical { border-left: 3px solid var(--error); }
+        .risk-item.impact-high     { border-left: 3px solid var(--high); }
+        .risk-item.impact-medium   { border-left: 3px solid var(--medium); }
+        .risk-item.impact-low      { border-left: 3px solid var(--low); }
+
+        .risk-score-circle {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            flex-shrink: 0;
+            border: 2px solid;
+        }
+
+        .risk-score-circle.critical { color: var(--error); border-color: rgba(255,77,109,0.4); background: rgba(255,77,109,0.08); }
+        .risk-score-circle.high     { color: var(--high); border-color: rgba(255,140,66,0.4); background: rgba(255,140,66,0.08); }
+        .risk-score-circle.medium   { color: var(--medium); border-color: rgba(255,209,102,0.4); background: rgba(255,209,102,0.08); }
+        .risk-score-circle.low      { color: var(--low); border-color: rgba(6,214,160,0.4); background: rgba(6,214,160,0.08); }
+
+        .risk-body { flex: 1; min-width: 0; }
+
+        .risk-key {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--accent);
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .risk-summary {
+            font-size: 13px;
+            color: var(--text);
+            font-weight: 500;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .risk-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .risk-tag {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .score-bar-wrap {
+            margin-top: 8px;
+        }
+
+        .score-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        .score-fill.critical { background: var(--error); }
+        .score-fill.high     { background: var(--high); }
+        .score-fill.medium   { background: var(--medium); }
+        .score-fill.low      { background: var(--low); }
+
+        .heat-matrix {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .heat-cell {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: default;
+            transition: transform 0.1s;
+        }
+
+        .heat-cell:hover { transform: scale(1.05); }
+
+        canvas { max-height: 200px; }
+
+        .summary-banner {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: rgba(108,99,255,0.05);
+            border: 1px solid rgba(108,99,255,0.2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .summary-icon { font-size: 32px; }
+
+        .summary-text h3 {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .summary-text p {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Risk Analysis</div>
+            <div class="page-subtitle">AI-Powered Risk Intelligence</div>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <select id="projectSelect" class="select">
+                    <option value="">— Select a project —</option>
+                </select>
+                <button class="btn btn-primary" onclick="runAnalysis()">⚡ Run Analysis</button>
+                <div class="filter-tabs" id="filterTabs" style="display:none;">
+                    <span class="filter-chip active" data-f="" onclick="filterRisks('',this)">All</span>
+                    <span class="filter-chip" data-f="Critical" onclick="filterRisks('Critical',this)">Critical</span>
+                    <span class="filter-chip" data-f="High" onclick="filterRisks('High',this)">High</span>
+                    <span class="filter-chip" data-f="Medium" onclick="filterRisks('Medium',this)">Medium</span>
+                </div>
+            </div>
+
+            <div id="loadingState" class="loading-state" style="display:none;">
+                <div class="spinner"></div>Analyzing risks...
+            </div>
+
+            <div id="noProject" class="card" style="text-align:center;padding:50px;">
+                <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+                <div style="font-family:'Inter', sans-serif;font-size:18px;font-weight:800;margin-bottom:8px;">Risk Analysis Engine</div>
+                <div style="font-size:13px;color:var(--muted);max-width:360px;margin:0 auto">Select a project and click "Run Analysis" to identify high-risk issues based on priority, due dates, and issue content.</div>
+            </div>
+
+            <div id="content" style="display:none;">
+                <!-- Summary banner -->
+                <div class="summary-banner" id="summaryBanner"></div>
+
+                <div class="stats-grid" style="margin-bottom:20px;">
+                    <div class="stat-card"><div class="stat-label">Analyzed</div><div class="stat-value" id="r-analyzed">—</div></div>
+                    <div class="stat-card red"><div class="stat-label">Critical</div><div class="stat-value" id="r-critical">—</div></div>
+                    <div class="stat-card" style="--before:var(--high)"><div class="stat-label">High Risk</div><div class="stat-value" id="r-high" style="color:var(--high)">—</div></div>
+                    <div class="stat-card yellow"><div class="stat-label">At Risk</div><div class="stat-value" id="r-total">—</div></div>
+                </div>
+
+                <div class="risk-grid">
+                    <div class="card" style="margin-bottom:0;">
+                        <div class="card-title">Risk by Category</div>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div class="card" style="margin-bottom:0;">
+                        <div class="card-title">Impact Distribution</div>
+                        <canvas id="impactChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:20px;">
+                    <div class="card-title">🔴 Risk Register</div>
+                    <div id="riskList"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        let allRisks = [];
+        let catChart = null, impactChart = null;
+
+        async function init() {
+            const user = await initPage('risk');
+            if (!user) return;
+            await loadProjects('projectSelect');
+
+            // Auto-select project from URL param
+            const params = new URLSearchParams(window.location.search);
+            const proj = params.get('project');
+            if (proj) {
+                document.getElementById('projectSelect').value = proj;
+                runAnalysis();
+            }
+        }
+
+        async function runAnalysis() {
+            const project = document.getElementById('projectSelect').value;
+            if (!project) { alert('Please select a project first.'); return; }
+
+            document.getElementById('noProject').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/risk/analyze/${project}`);
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Analysis failed');
+                }
+                const data = await res.json();
+                allRisks = data.risks;
+
+                document.getElementById('r-analyzed').textContent = data.total_analyzed;
+                document.getElementById('r-critical').textContent = data.critical_count;
+                document.getElementById('r-high').textContent = data.high_count;
+                document.getElementById('r-total').textContent = data.total_high_risk;
+
+                renderSummary(data);
+                renderCharts(data);
+                renderRisks(allRisks);
+
+                document.getElementById('filterTabs').style.display = 'flex';
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (err) {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('noProject').style.display = 'block';
+                document.getElementById('noProject').innerHTML = `
+                    <div style="font-size:40px;margin-bottom:12px;">❌</div>
+                    <div style="font-family:'Inter', sans-serif;font-size:16px;font-weight:800;color:var(--error);margin-bottom:8px;">${err.message}</div>
+                    <div style="font-size:13px;color:var(--muted)">Check your Jira configuration in Settings.</div>
+                `;
+            }
+        }
+
+        function renderSummary(data) {
+            const critical = data.critical_count;
+            let icon = '✅', headline = 'Low Risk', desc = 'No critical issues found. Project is on track.';
+            if (critical >= 5) { icon = '🔴'; headline = 'High Risk Alert'; desc = `${critical} critical issues require immediate attention.`; }
+            else if (critical >= 2) { icon = '🟠'; headline = 'Elevated Risk'; desc = `${critical} critical issues detected. Review and prioritize.`; }
+            else if (critical >= 1) { icon = '🟡'; headline = 'Monitor Closely'; desc = `${critical} critical issue identified. Keep track of progress.`; }
+
+            document.getElementById('summaryBanner').innerHTML = `
+                <div class="summary-icon">${icon}</div>
+                <div class="summary-text">
+                    <h3>${headline}</h3>
+                    <p>${desc} Analyzed ${data.total_analyzed} open issues, found ${data.total_high_risk} at-risk items.</p>
+                </div>
+            `;
+        }
+
+        function renderCharts(data) {
+            const cb = data.category_breakdown || {};
+            const cats = Object.keys(cb);
+            const vals = Object.values(cb);
+            const palette = ['#6c63ff','#ff6584','#00d9a3','#ffb347','#4ea1ff','#ff4d6d','#a78bfa','#34d399'];
+
+            if (catChart) catChart.destroy();
+            catChart = new Chart(document.getElementById('categoryChart'), {
+                type: 'bar',
+                data: {
+                    labels: cats,
+                    datasets: [{ data: vals, backgroundColor: palette.slice(0, cats.length), borderRadius: 4, borderSkipped: false }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#5a5a70', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e1e30' } },
+                        y: { ticks: { color: '#5a5a70', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e1e30' } }
+                    }
+                }
+            });
+
+            const impacts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+            allRisks.forEach(r => { if (impacts[r.impact] !== undefined) impacts[r.impact]++; });
+
+            if (impactChart) impactChart.destroy();
+            impactChart = new Chart(document.getElementById('impactChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [impacts.Critical, impacts.High, impacts.Medium, impacts.Low],
+                        backgroundColor: ['#ff4d6d', '#ff8c42', '#ffd166', '#06d6a0'],
+                        borderColor: '#0f0f18',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    cutout: '60%',
+                    plugins: { legend: { labels: { color: '#a0a0b8', font: { family: 'DM Mono', size: 11 } } } }
+                }
+            });
+        }
+
+        function filterRisks(impact, el) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            const filtered = impact ? allRisks.filter(r => r.impact === impact) : allRisks;
+            renderRisks(filtered);
+        }
+
+        function renderRisks(risks) {
+            const el = document.getElementById('riskList');
+            if (!risks.length) { el.innerHTML = '<div class="empty-state">No risks match the current filter.</div>'; return; }
+
+            el.innerHTML = risks.map(r => {
+                const cls = r.impact.toLowerCase();
+                return `
+                    <div class="risk-item impact-${cls}">
+                        <div class="risk-score-circle ${cls}">${r.score}</div>
+                        <div class="risk-body">
+                            <div class="risk-key">
+                                <span>${r.key}</span>
+                                <span class="badge badge-${cls}">${r.impact}</span>
+                            </div>
+                            <div class="risk-summary" title="${r.summary}">${r.summary}</div>
+                            <div class="risk-meta">
+                                <span class="risk-tag">${r.category}</span>
+                                <span class="risk-tag">${r.priority}</span>
+                                ${r.assignee !== 'Unassigned' ? `<span class="risk-tag">👤 ${r.assignee}</span>` : '<span class="risk-tag" style="color:var(--error)">⚠ Unassigned</span>'}
+                                ${r.due_date ? `<span class="risk-tag">📅 ${r.due_date}</span>` : ''}
+                            </div>
+                            <div class="score-bar-wrap">
+                                <div class="score-bar"><div class="score-fill ${cls}" style="width:${r.score}%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // CSS for filter chips (same as kanban)
+        const style = document.createElement('style');
+        style.textContent = `.filter-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-family:'Inter', sans-serif;cursor:pointer;transition:all .15s}.filter-chip.active,.filter-chip:hover{border-color:var(--accent);color:var(--accent)}`;
+        document.head.appendChild(style);
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Dashboard</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        canvas { max-height: 240px; }
+        .overdue-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .overdue-item:last-child { border-bottom: none; }
+        .overdue-key { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--accent); font-weight: 500; min-width: 80px; }
+        .overdue-title { flex: 1; font-size: 13px; color: var(--text2); }
+        .overdue-meta { text-align: right; }
+        .days-badge { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--error); font-weight: 500; }
+        .assignee-badge { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .completion-bar-wrap { margin-bottom: 8px; }
+        .completion-label { display: flex; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+        .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 900px) { .charts-grid, .two-cols { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Dashboard</div>
+            <div class="page-subtitle">Project Overview & Analytics</div>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <select id="projectSelect" class="select">
+                    <option value="">— Select a project —</option>
+                </select>
+                <button class="btn btn-secondary" onclick="refreshData()">↻ Refresh</button>
+            </div>
+
+            <div id="noJira" class="card" style="display:none; text-align:center; padding:40px;">
+                <div style="font-size:32px; margin-bottom:12px;">🔗</div>
+                <div style="font-family:'Inter', sans-serif; font-size:18px; font-weight:800; margin-bottom:8px;">Jira Not Configured</div>
+                <div id="noJiraText" style="font-size:13px; color:var(--muted); margin-bottom:20px;">Connect your Jira account to start analyzing projects.</div>
+                <a href="/settings.html" class="btn btn-primary" style="display:inline-block; text-decoration:none;">Go to Settings →</a>
+            </div>
+
+            <div id="loadingState" class="loading-state" style="display:none;">
+                <div class="spinner"></div>
+                Loading project data...
+            </div>
+
+            <div id="content" style="display:none;">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Total Issues</div><div class="stat-value" id="statTotal">—</div></div>
+                    <div class="stat-card green"><div class="stat-label">Completed</div><div class="stat-value" id="statDone">—</div></div>
+                    <div class="stat-card blue"><div class="stat-label">In Progress</div><div class="stat-value" id="statProgress">—</div></div>
+                    <div class="stat-card yellow"><div class="stat-label">To Do</div><div class="stat-value" id="statTodo">—</div></div>
+                    <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-value" id="statOverdue">—</div></div>
+                </div>
+
+                <!-- Completion progress -->
+                <div class="card">
+                    <div class="card-title">Completion Rate</div>
+                    <div class="completion-label">
+                        <span>Progress</span>
+                        <span id="completionPct">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="completionFill" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="card">
+                        <div class="card-title">Status Distribution</div>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Priority Breakdown</div>
+                        <canvas id="priorityChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="two-cols">
+                    <!-- Overdue Tasks -->
+                    <div class="card">
+                        <div class="card-title">⏰ Overdue Tasks</div>
+                        <div id="overdueList">
+                            <div class="empty-state">No overdue tasks 🎉</div>
+                        </div>
+                    </div>
+
+                    <!-- Assignee Distribution -->
+                    <div class="card">
+                        <div class="card-title">👥 Top Assignees</div>
+                        <div id="assigneeList"><div class="empty-state">—</div></div>
+                    </div>
+                </div>
+
+                <div style="text-align:right; margin-top:8px;">
+                    <a href="/risk.html" id="riskLink" class="btn btn-danger">⚠ Analyze Risks →</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        let statusChart = null, priorityChart = null;
+        let currentProject = '';
+        let availableProjects = [];
+
+        async function init() {
+            const user = await initPage('dashboard');
+            if (!user) return;
+            const projects = await loadProjects('projectSelect', () => loadProject(null, new Set(), false));
+            availableProjects = Array.isArray(projects) ? projects.map(p => p.key) : [];
+            if (!projects || projects.length === 0) {
+                document.getElementById('noJira').style.display = 'block';
+                return;
+            }
+
+            // Auto-select default project
+            if (user.default_project) {
+                document.getElementById('projectSelect').value = user.default_project;
+                await loadProject(null, new Set(), true);
+            }
+        }
+
+        async function loadProject(projectOverride = null, tried = new Set(), allowFallback = false) {
+            const project = projectOverride || document.getElementById('projectSelect').value;
+            if (!project) return;
+            currentProject = project;
+            document.getElementById('projectSelect').value = project;
+            tried.add(project);
+
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('noJira').style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/jira/dashboard/${project}`);
+                if (!res.ok) {
+                    let msg = `Failed to load project ${project}`;
+                    try {
+                        const err = await res.json();
+                        msg = err.error || msg;
+                    } catch (_) {}
+                    throw new Error(msg);
+                }
+                const data = await res.json();
+
+                document.getElementById('statTotal').textContent = data.total_issues;
+                document.getElementById('statDone').textContent = data.completed_issues;
+                document.getElementById('statProgress').textContent = data.in_progress_issues;
+                document.getElementById('statTodo').textContent = data.todo_issues;
+                document.getElementById('statOverdue').textContent = data.overdue_tasks.length;
+
+                const pct = data.completion_rate;
+                document.getElementById('completionPct').textContent = pct + '%';
+                document.getElementById('completionFill').style.width = pct + '%';
+
+                renderCharts(data);
+                renderOverdue(data.overdue_tasks);
+                renderAssignees(data.assignee_distribution || {});
+
+                // Update risk link
+                document.getElementById('riskLink').href = `/risk.html?project=${project}`;
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+                // Save as default
+                fetch(`${API_BASE}/settings/preferences`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ default_project: project })
+                });
+                return true;
+            } catch (err) {
+                document.getElementById('loadingState').style.display = 'none';
+                const fallback = allowFallback ? availableProjects.find(k => !tried.has(k)) : null;
+                if (fallback) {
+                    return loadProject(fallback, tried, true);
+                }
+                document.getElementById('noJira').style.display = 'block';
+                document.getElementById('noJiraText').textContent = `No dashboard data available. Last error: ${err.message}`;
+                return false;
+            }
+        }
+
+        function renderCharts(data) {
+            const chartDefaults = {
+                plugins: { legend: { labels: { color: '#a0a0b8', font: { family: 'DM Mono', size: 11 } } } }
+            };
+
+            if (statusChart) statusChart.destroy();
+            statusChart = new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'In Progress', 'To Do'],
+                    datasets: [{
+                        data: [data.completed_issues, data.in_progress_issues, data.todo_issues],
+                        backgroundColor: ['#00d9a3', '#4ea1ff', '#5a5a70'],
+                        borderColor: '#0f0f18',
+                        borderWidth: 3
+                    }]
+                },
+                options: { ...chartDefaults, cutout: '65%' }
+            });
+
+            const pd = data.priority_distribution || {};
+            if (priorityChart) priorityChart.destroy();
+            priorityChart = new Chart(document.getElementById('priorityChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [pd.Critical || 0, pd.High || 0, pd.Medium || 0, pd.Low || 0],
+                        backgroundColor: ['#ff4d6d', '#ff8c42', '#ffd166', '#06d6a0'],
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    ...chartDefaults,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#5a5a70', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e1e30' } },
+                        y: { ticks: { color: '#5a5a70', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e1e30' } }
+                    }
+                }
+            });
+        }
+
+        function renderOverdue(tasks) {
+            const el = document.getElementById('overdueList');
+            if (!tasks.length) { el.innerHTML = '<div class="empty-state" style="padding:20px">No overdue tasks 🎉</div>'; return; }
+            el.innerHTML = tasks.slice(0, 8).map(t => `
+                <div class="overdue-item">
+                    <div class="overdue-key">${t.key}</div>
+                    <div class="overdue-title">${t.summary}</div>
+                    <div class="overdue-meta">
+                        <div class="days-badge">${t.days_overdue}d late</div>
+                        <div class="assignee-badge">${t.assignee}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAssignees(dist) {
+            const el = document.getElementById('assigneeList');
+            const entries = Object.entries(dist).sort((a,b) => b[1]-a[1]).slice(0, 6);
+            if (!entries.length) { el.innerHTML = '<div class="empty-state">No data</div>'; return; }
+            const max = entries[0][1];
+            el.innerHTML = entries.map(([name, count]) => `
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:13px;color:var(--text2)">${name}</span>
+                        <span style="font-family:'Inter', sans-serif;font-size:12px;color:var(--muted)">${count}</span>
+                    </div>
+                    <div class="progress-bar" style="height:4px;">
+                        <div class="progress-fill" style="width:${(count/max*100).toFixed(0)}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function refreshData() { if (currentProject) loadProject(); }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Flow — Timeline</title>
+    <link rel="stylesheet" href="/uncia.css">
+    <style>
+        .timeline-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 28px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0; bottom: 0;
+            width: 1px;
+            background: linear-gradient(to bottom, var(--accent), var(--border));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 28px;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .timeline-item:nth-child(2) { animation-delay: 0.05s; }
+        .timeline-item:nth-child(3) { animation-delay: 0.1s; }
+        .timeline-item:nth-child(4) { animation-delay: 0.15s; }
+        .timeline-item:nth-child(5) { animation-delay: 0.2s; }
+
+        .timeline-dot {
+            position: absolute;
+            left: -24px;
+            top: 4px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--border2);
+            border: 2px solid var(--surface);
+            z-index: 1;
+        }
+
+        .timeline-item.done .timeline-dot { background: var(--success); border-color: var(--surface); }
+        .timeline-item.current .timeline-dot { background: var(--accent); border-color: var(--surface); box-shadow: 0 0 10px var(--accent); }
+        .timeline-item.upcoming .timeline-dot { background: var(--muted); }
+
+        .timeline-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .timeline-item.current .timeline-card { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.05); }
+        .timeline-item.done .timeline-card { border-color: rgba(0,217,163,0.2); }
+
+        .timeline-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+        .timeline-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .timeline-status {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .timeline-item.done .timeline-status { color: var(--success); }
+        .timeline-item.current .timeline-status { color: var(--accent); }
+        .timeline-item.upcoming .timeline-status { color: var(--muted); }
+
+        .timeline-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .timeline-date {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        /* Gantt-style chart */
+        .gantt {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            overflow-x: auto;
+        }
+
+        .gantt-title { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 20px; }
+
+        .gantt-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .gantt-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text2);
+            width: 100px;
+            flex-shrink: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .gantt-track {
+            flex: 1;
+            height: 20px;
+            background: var(--surface2);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gantt-bar {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .gantt-pct {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            width: 32px;
+            text-align: right;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mini-stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .mini-stat-val {
+            font-family: 'Inter', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .mini-stat-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+    <main id="main">
+        <div class="page-header">
+            <div class="page-title">Timeline</div>
+            <div class="page-subtitle">Project Phases & Milestones</div>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <select id="projectSelect" class="select">
+                    <option value="">— Select a project —</option>
+                </select>
+            </div>
+
+            <div id="loadingState" class="loading-state" style="display:none;">
+                <div class="spinner"></div>Loading timeline...
+            </div>
+
+            <div id="noProject" class="card" style="text-align:center;padding:40px;">
+                <div style="font-size:32px;margin-bottom:12px;">📅</div>
+                <div style="font-family:'Inter', sans-serif;font-size:18px;font-weight:800;margin-bottom:8px;">Select a Project</div>
+                <div id="noProjectText" style="font-size:13px;color:var(--muted);">Choose a project to view its timeline and progress.</div>
+            </div>
+
+            <div id="content" style="display:none;">
+                <div class="stats-row">
+                    <div class="mini-stat"><div class="mini-stat-val" id="tl-total">—</div><div class="mini-stat-label">Issues</div></div>
+                    <div class="mini-stat"><div class="mini-stat-val" id="tl-pct" style="color:var(--accent)">—</div><div class="mini-stat-label">Complete</div></div>
+                    <div class="mini-stat"><div class="mini-stat-val" id="tl-overdue" style="color:var(--error)">—</div><div class="mini-stat-label">Overdue</div></div>
+                </div>
+
+                <div class="timeline-wrap">
+                    <div class="card" style="margin-bottom:0;">
+                        <div class="card-title">Project Phases</div>
+                        <div class="timeline" id="timeline"></div>
+                    </div>
+
+                    <div class="gantt">
+                        <div class="gantt-title">Status Breakdown</div>
+                        <div id="ganttChart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/shared.js"></script>
+    <script>
+        async function init() {
+            const user = await initPage('timeline');
+            if (!user) return;
+            const projects = await loadProjects('projectSelect', loadTimeline);
+            if (!projects || projects.length === 0) {
+                document.getElementById('noProjectText').textContent = 'No Jira projects found for this account/site.';
+                return;
+            }
+
+            // Keep timeline behavior consistent with dashboard defaults.
+            if (user.default_project && projects.some(p => p.key === user.default_project)) {
+                document.getElementById('projectSelect').value = user.default_project;
+            }
+            await loadTimeline();
+        }
+
+        async function loadTimeline() {
+            const project = document.getElementById('projectSelect').value;
+            if (!project) return;
+
+            document.getElementById('noProject').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+
+            try {
+                const [dashRes, deepRes] = await Promise.all([
+                    fetch(`${API_BASE}/jira/dashboard/${project}`),
+                    fetch(`${API_BASE}/jira/deep-dive/${project}`)
+                ]);
+
+                let deepDive = {};
+                if (deepRes.ok) {
+                    const deepPayload = await deepRes.json();
+                    deepDive = deepPayload.deep_dive || {};
+                }
+                if (!dashRes.ok && !deepRes.ok) {
+                    let errorMessage = 'Failed to load timeline data';
+                    try {
+                        const errData = await dashRes.json();
+                        errorMessage = errData.error || errorMessage;
+                    } catch (_) {}
+                    throw new Error(errorMessage);
+                }
+
+                let data;
+                if (dashRes.ok) {
+                    data = await dashRes.json();
+                } else {
+                    const status = deepDive.status_breakdown || {};
+                    const completed = status['Done'] || 0;
+                    const inProgress = (status['In Progress'] || 0) + (status['Review'] || 0) + (status['Testing'] || 0);
+                    const todo = status['To Do'] || 0;
+                    const total = completed + inProgress + todo;
+                    data = {
+                        total_issues: total,
+                        completed_issues: completed,
+                        in_progress_issues: inProgress,
+                        todo_issues: todo,
+                        overdue_tasks: [],
+                        completion_rate: total > 0 ? Math.round((completed / total) * 100) : 0
+                    };
+                }
+
+                document.getElementById('tl-total').textContent = data.total_issues;
+                document.getElementById('tl-pct').textContent = data.completion_rate + '%';
+                document.getElementById('tl-overdue').textContent = data.overdue_tasks.length;
+
+                renderTimeline(data, deepDive, project);
+                renderGantt(data);
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (err) {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('noProject').style.display = 'block';
+                document.getElementById('noProjectText').textContent = `Timeline unavailable: ${err.message}`;
+            }
+        }
+
+        function timelineItemStatus(status) {
+            if (status === 'done' || status === 'completed') return { cls: 'done', label: '✓ Complete' };
+            if (status === 'active' || status === 'in_progress') return { cls: 'current', label: '● Active' };
+            return { cls: 'upcoming', label: '· Upcoming' };
+        }
+
+        function renderTimeline(data, deepDive, project) {
+            const milestones = Array.isArray(deepDive.milestones) ? deepDive.milestones : [];
+            const sprints = Array.isArray(deepDive.sprint_timeline) ? deepDive.sprint_timeline : [];
+            let phases = [];
+
+            if (milestones.length) {
+                phases = milestones.map(m => {
+                    const state = timelineItemStatus(m.status);
+                    const dateLabel = m.target_date ? `Target: ${m.target_date}` : '';
+                    return {
+                        title: m.name || 'Milestone',
+                        desc: dateLabel || `${project} milestone`,
+                        status: state.cls,
+                        statusLabel: state.label
+                    };
+                });
+            } else if (sprints.length) {
+                phases = sprints.map(s => {
+                    const state = timelineItemStatus(s.status);
+                    return {
+                        title: s.sprint || 'Sprint',
+                        desc: `${s.goal || 'Delivery'} (${s.start || 'TBD'} → ${s.end || 'TBD'})`,
+                        status: state.cls,
+                        statusLabel: state.label
+                    };
+                });
+            } else {
+                const rate = data.completion_rate;
+                phases = [
+                    {
+                        title: 'Project Kick-off',
+                        desc: 'Requirements gathering and team alignment',
+                        status: 'done',
+                        statusLabel: '✓ Complete'
+                    },
+                    {
+                        title: 'Planning & Design',
+                        desc: `Architecture decisions and sprint planning. ${data.total_issues} issues tracked.`,
+                        status: rate > 20 ? 'done' : 'current',
+                        statusLabel: rate > 20 ? '✓ Complete' : '● Active'
+                    },
+                    {
+                        title: 'Development',
+                        desc: `Core implementation. ${data.in_progress_issues} issues in progress, ${data.todo_issues} remaining.`,
+                        status: rate < 20 ? 'upcoming' : rate < 80 ? 'current' : 'done',
+                        statusLabel: rate < 20 ? '· Upcoming' : rate < 80 ? '● Active' : '✓ Complete'
+                    },
+                    {
+                        title: 'Testing & QA',
+                        desc: 'Quality assurance, bug fixes, and performance validation.',
+                        status: rate < 70 ? 'upcoming' : rate < 95 ? 'current' : 'done',
+                        statusLabel: rate < 70 ? '· Upcoming' : rate < 95 ? '● Active' : '✓ Complete'
+                    },
+                    {
+                        title: 'Release',
+                        desc: 'Production deployment and post-launch monitoring.',
+                        status: rate < 95 ? 'upcoming' : 'current',
+                        statusLabel: rate < 95 ? '· Upcoming' : '● Active'
+                    }
+                ];
+            }
+
+            document.getElementById('timeline').innerHTML = phases.map((p, i) => `
+                <div class="timeline-item ${p.status}" style="animation-delay:${i*0.07}s">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-card">
+                        <div class="timeline-header">
+                            <span class="timeline-title">Phase ${i+1}: ${p.title}</span>
+                            <span class="timeline-status">${p.statusLabel}</span>
+                        </div>
+                        <div class="timeline-desc">${p.desc}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGantt(data) {
+            const total = data.total_issues || 1;
+            const items = [
+                { label: 'Completed', value: data.completed_issues, color: '#00d9a3' },
+                { label: 'In Progress', value: data.in_progress_issues, color: '#4ea1ff' },
+                { label: 'To Do', value: data.todo_issues, color: '#5a5a70' },
+                { label: 'Overdue', value: data.overdue_tasks.length, color: '#ff4d6d' },
+            ];
+
+            document.getElementById('ganttChart').innerHTML = items.map(item => {
+                const pct = ((item.value / total) * 100).toFixed(0);
+                return `
+                    <div class="gantt-row">
+                        <div class="gantt-label">${item.label}</div>
+                        <div class="gantt-track">
+                            <div class="gantt-bar" style="width:${pct}%;background:${item.color};opacity:0.8;left:0;"></div>
+                        </div>
+                        <div class="gantt-pct">${item.value}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        init();
+    </script>
+</body>
+</html>

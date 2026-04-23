@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Client Share Links — BuildFlow</title>
+<link rel="stylesheet" href="uncia.css"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#222;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:14px 28px;display:flex;align-items:center;gap:16px;}
+  .topbar h1{font-size:17px;font-weight:600;}
+  .topbar a{margin-left:auto;font-size:13px;color:#6c63ff;text-decoration:none;}
+  .wrap{max-width:860px;margin:0 auto;padding:28px 20px;}
+  .create-box{background:#fff;border-radius:14px;padding:24px;box-shadow:0 1px 6px rgba(0,0,0,.07);margin-bottom:28px;}
+  .create-box h2{font-size:15px;font-weight:600;margin-bottom:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:#666;margin-bottom:5px;font-weight:500;}
+  .field input,.field select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;background:#fff;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:560px){.row{grid-template-columns:1fr;}}
+  .toggle-row{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:10px;}
+  toggle-row input[type=checkbox]{width:16px;height:16px;}
+  button.primary{background:#6c63ff;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;}
+  button.primary:hover{background:#5a52e0;}
+  .shares-list{display:flex;flex-direction:column;gap:12px;}
+  .share-card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:14px;}
+  .share-card .icon{font-size:24px;flex-shrink:0;}
+  .share-card .info{flex:1;}
+  .share-card .info h3{font-size:14px;font-weight:600;margin-bottom:3px;}
+  .share-card .info .meta{font-size:12px;color:#888;margin-bottom:8px;}
+  .share-card .url-bar{display:flex;align-items:center;gap:8px;background:#f5f6fa;border-radius:8px;padding:7px 12px;}
+  .share-card .url-bar span{font-size:12px;color:#555;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .share-card .url-bar button{padding:4px 10px;border-radius:6px;border:1px solid #ddd;font-size:11px;background:#fff;cursor:pointer;}
+  .share-card .url-bar button:hover{background:#f0f0f0;}
+  .share-card .actions{display:flex;gap:8px;margin-top:10px;}
+  .share-card .actions a{font-size:12px;color:#6c63ff;text-decoration:none;}
+  .share-card .actions button.del{font-size:12px;color:#e74c3c;background:none;border:none;cursor:pointer;padding:0;}
+  .badge-exp{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-exp.active{background:#eafaf1;color:#1a7a42;}
+  .badge-exp.expired{background:#fdecea;color:#b71c1c;}
+  .badge-exp.nolimit{background:#eef2ff;color:#4a47a3;}
+  .empty{text-align:center;padding:40px;color:#aaa;font-size:14px;}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;display:none;z-index:999;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-size:20px;">🔗</span>
+  <h1>Client Share Links</h1>
+  <a href="dashboard.html">← Dashboard</a>
+</div>
+
+<div class="wrap">
+  <!-- CREATE FORM -->
+  <div class="create-box">
+    <h2>Create a new share link</h2>
+    <div class="row">
+      <div class="field">
+        <label>Project</label>
+        <select id="fProject"><option value="">Select project…</option></select>
+      </div>
+      <div class="field">
+        <label>Label (who are you sharing with?)</label>
+        <input id="fLabel" type="text" placeholder="e.g. Shared with Accenture Team"/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Expires in (days) — leave blank for no expiry</label>
+        <input id="fExpiry" type="number" min="1" placeholder="e.g. 30"/>
+      </div>
+      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px;">
+        <div class="toggle-row"><input type="checkbox" id="fRisks" checked/><label for="fRisks">Show risk summary</label></div>
+        <div class="toggle-row"><input type="checkbox" id="fTeam"/><label for="fTeam">Show team workload</label></div>
+      </div>
+    </div>
+    <button class="primary" onclick="createShare()">Generate Link</button>
+  </div>
+
+  <!-- EXISTING SHARES -->
+  <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:#444;">Active Share Links</div>
+  <div class="shares-list" id="sharesList"><div class="empty">No share links yet.</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API='';
+const origin=window.location.origin;
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  setTimeout(()=>t.style.display='none',2200);
+}
+
+async function apiFetch(path,opts={}){
+  const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json'},...opts});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Load projects
+apiFetch('/api/jira/projects').then(d=>{
+  const sel=document.getElementById('fProject');
+  (d.projects||[]).forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.key; o.textContent=`${p.key} — ${p.name}`;
+    sel.appendChild(o);
+  });
+}).catch(()=>{});
+
+// Load existing shares
+async function loadShares(){
+  try{
+    const d=await apiFetch('/api/client/shares');
+    renderShares(d.shares||[]);
+  }catch(e){renderShares([]);}
+}
+loadShares();
+
+function isExpired(s){
+  if(!s.expires_at) return false;
+  return new Date(s.expires_at)<new Date();
+}
+
+function renderShares(shares){
+  const el=document.getElementById('sharesList');
+  if(!shares.length){el.innerHTML='<div class="empty">No share links yet. Create one above.</div>';return;}
+  el.innerHTML=shares.map(s=>{
+    const url=`${origin}/share/${s.token}`;
+    const expired=isExpired(s);
+    const expBadge=expired
+      ?'<span class="badge-exp expired">Expired</span>'
+      :s.expires_at
+        ?`<span class="badge-exp active">Expires ${new Date(s.expires_at).toLocaleDateString()}</span>`
+        :'<span class="badge-exp nolimit">No expiry</span>';
+    return `
+      <div class="share-card">
+        <div class="icon">🔗</div>
+        <div class="info">
+          <h3>${s.label||s.project_key}</h3>
+          <div class="meta">
+            Project: <b>${s.project_key}</b> &nbsp;·&nbsp;
+            ${expBadge} &nbsp;·&nbsp;
+            ${s.show_risks?'✅ Risks':'❌ No risks'} &nbsp;·&nbsp;
+            ${s.show_team?'✅ Team':'❌ No team'} &nbsp;·&nbsp;
+            Created ${new Date(s.created_at).toLocaleDateString()}
+          </div>
+          <div class="url-bar">
+            <span>${url}</span>
+            <button onclick="copyUrl('${url}')">Copy</button>
+            <button onclick="window.open('${url}','_blank')">Preview</button>
+          </div>
+          <div class="actions">
+            <button class="del" onclick="deleteShare('${s.token}')">🗑 Delete</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function createShare(){
+  const pk=document.getElementById('fProject').value;
+  if(!pk){alert('Please select a project');return;}
+  const body={
+    project_key: pk,
+    label:       document.getElementById('fLabel').value||`Shared — ${pk}`,
+    show_risks:  document.getElementById('fRisks').checked,
+    show_team:   document.getElementById('fTeam').checked,
+    expires_days:document.getElementById('fExpiry').value||null,
+  };
+  try{
+    await apiFetch('/api/client/share',{method:'POST',body:JSON.stringify(body)});
+    toast('Share link created!');
+    loadShares();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function deleteShare(token){
+  if(!confirm('Delete this share link? The client will lose access.'))return;
+  try{
+    await apiFetch(`/api/client/share/${token}`,{method:'DELETE'});
+    toast('Deleted.');
+    loadShares();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function copyUrl(url){
+  navigator.clipboard.writeText(url).then(()=>toast('Copied to clipboard!'));
+}
+</script>
+</body>
+</html>

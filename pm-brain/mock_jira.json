@@ -1,0 +1,367 @@
+{
+  "project": "TASKFLOW",
+  "total_issues": 25,
+  "issues": [
+    {
+      "id": "TF-001",
+      "title": "Users cannot export reports to CSV or PDF",
+      "type": "Feature Request",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 67,
+      "labels": ["export", "enterprise", "reporting"],
+      "comments": [
+        "Sales: 3 enterprise deals on hold because of this",
+        "Customer Acme Corp threatened to cancel if not fixed in Q2",
+        "This came up in 5 customer calls this month"
+      ],
+      "created": "2026-02-10"
+    },
+    {
+      "id": "TF-002",
+      "title": "Bulk export for admin users",
+      "type": "Feature Request",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 54,
+      "labels": ["export", "admin", "enterprise"],
+      "comments": [
+        "Duplicate of TF-001 but for admins specifically",
+        "Enterprise tier customers keep asking"
+      ],
+      "created": "2026-02-23"
+    },
+    {
+      "id": "TF-003",
+      "title": "Export scheduled reports via email",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 41,
+      "labels": ["export", "email", "automation"],
+      "comments": [
+        "Follow-up to TF-001 — users want automated exports",
+        "Would close 2 more deals according to sales"
+      ],
+      "created": "2026-03-08"
+    },
+    {
+      "id": "TF-004",
+      "title": "Notification bell shows wrong unread count",
+      "type": "Bug",
+      "priority": "P2",
+      "status": "In Progress",
+      "days_in_backlog": 12,
+      "labels": ["notifications", "bug", "ui"],
+      "comments": [
+        "Reported by 14 users this week",
+        "Count resets randomly on page reload"
+      ],
+      "created": "2026-04-06"
+    },
+    {
+      "id": "TF-005",
+      "title": "Too many notification emails — users unsubscribing",
+      "type": "Bug",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 38,
+      "labels": ["notifications", "email", "retention"],
+      "comments": [
+        "23% of users disabled all notifications last month",
+        "DAU dropped 8% correlated with notification changes",
+        "Users say inbox is flooded"
+      ],
+      "created": "2026-03-11"
+    },
+    {
+      "id": "TF-006",
+      "title": "Notification preferences page — granular control",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 29,
+      "labels": ["notifications", "settings", "ux"],
+      "comments": [
+        "Users want per-project notification settings",
+        "Competitors Asana and Linear both have this"
+      ],
+      "created": "2026-03-20"
+    },
+    {
+      "id": "TF-007",
+      "title": "Mobile app crashes on task assignment",
+      "type": "Bug",
+      "priority": "P0",
+      "status": "In Progress",
+      "days_in_backlog": 5,
+      "labels": ["mobile", "crash", "critical"],
+      "comments": [
+        "Crash rate 12% on iOS 17.4",
+        "Sentry shows 400+ crashes per day",
+        "Hot fix being worked on"
+      ],
+      "created": "2026-04-13"
+    },
+    {
+      "id": "TF-008",
+      "title": "Mobile offline mode — tasks not syncing",
+      "type": "Bug",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 45,
+      "labels": ["mobile", "offline", "sync"],
+      "comments": [
+        "Field teams cannot use app without internet",
+        "3 construction company clients affected",
+        "They use app on job sites with poor signal"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "id": "TF-009",
+      "title": "Mobile dark mode not working on Android",
+      "type": "Bug",
+      "priority": "P3",
+      "status": "Backlog",
+      "days_in_backlog": 33,
+      "labels": ["mobile", "android", "ui"],
+      "comments": [
+        "Cosmetic issue — low priority",
+        "Only affects Android 12 and below"
+      ],
+      "created": "2026-03-16"
+    },
+    {
+      "id": "TF-010",
+      "title": "Dashboard loads slowly for large workspaces",
+      "type": "Bug",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 52,
+      "labels": ["performance", "dashboard", "enterprise"],
+      "comments": [
+        "Workspaces with 500+ tasks take 8-12 seconds to load",
+        "Enterprise client GlobalCorp complained in QBR",
+        "Losing enterprise deals because of this"
+      ],
+      "created": "2026-02-27"
+    },
+    {
+      "id": "TF-011",
+      "title": "API rate limits too restrictive for enterprise",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 44,
+      "labels": ["api", "enterprise", "limits"],
+      "comments": [
+        "Enterprise customers building integrations hitting limits",
+        "Competitor offers 10x our limits"
+      ],
+      "created": "2026-03-05"
+    },
+    {
+      "id": "TF-012",
+      "title": "SSO login broken for Okta users",
+      "type": "Bug",
+      "priority": "P0",
+      "status": "Done",
+      "days_in_backlog": 0,
+      "labels": ["auth", "sso", "enterprise"],
+      "comments": [
+        "Fixed in last sprint",
+        "Was blocking 2 enterprise onboardings"
+      ],
+      "created": "2026-03-30"
+    },
+    {
+      "id": "TF-013",
+      "title": "Task dependencies — block/blocked by relationship",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 78,
+      "labels": ["task-management", "dependencies", "core"],
+      "comments": [
+        "Most requested feature in NPS survey — 340 votes",
+        "Project managers cannot plan sprints without this",
+        "Jira and Linear both have this — we dont"
+      ],
+      "created": "2026-01-30"
+    },
+    {
+      "id": "TF-014",
+      "title": "Recurring tasks — daily, weekly, monthly",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 91,
+      "labels": ["task-management", "recurring", "automation"],
+      "comments": [
+        "Second most requested in NPS — 280 votes",
+        "Operations teams need this for daily standups and weekly reviews",
+        "Moved from last 3 sprints due to capacity"
+      ],
+      "created": "2026-01-18"
+    },
+    {
+      "id": "TF-015",
+      "title": "Subtasks not showing in main task list view",
+      "type": "Bug",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 25,
+      "labels": ["task-management", "subtasks", "bug"],
+      "comments": [
+        "Users confused about where subtasks went",
+        "UX regression from last release"
+      ],
+      "created": "2026-03-24"
+    },
+    {
+      "id": "TF-016",
+      "title": "Gantt chart view for project timeline",
+      "type": "Feature Request",
+      "priority": "P3",
+      "status": "Backlog",
+      "days_in_backlog": 110,
+      "labels": ["views", "gantt", "planning"],
+      "comments": [
+        "Nice to have — low urgency",
+        "Some PMs requesting but not blocking deals"
+      ],
+      "created": "2026-01-01"
+    },
+    {
+      "id": "TF-017",
+      "title": "Workspace analytics — team productivity report",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 60,
+      "labels": ["analytics", "reporting", "enterprise"],
+      "comments": [
+        "Managers want to see team velocity and completion rates",
+        "Mentioned in 4 enterprise sales calls"
+      ],
+      "created": "2026-02-19"
+    },
+    {
+      "id": "TF-018",
+      "title": "Search is slow and misses results",
+      "type": "Bug",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 48,
+      "labels": ["search", "performance", "core"],
+      "comments": [
+        "Search takes 3-5 seconds",
+        "Does not search inside task descriptions",
+        "Users reverting to browser Ctrl+F"
+      ],
+      "created": "2026-03-01"
+    },
+    {
+      "id": "TF-019",
+      "title": "Slack integration — task updates in Slack",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "In Progress",
+      "days_in_backlog": 8,
+      "labels": ["integrations", "slack", "notifications"],
+      "comments": [
+        "Being built this sprint",
+        "High demand from startup customers"
+      ],
+      "created": "2026-04-10"
+    },
+    {
+      "id": "TF-020",
+      "title": "Google Calendar sync broken",
+      "type": "Bug",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 36,
+      "labels": ["integrations", "calendar", "bug"],
+      "comments": [
+        "Due dates not syncing to Google Calendar",
+        "About 200 users affected based on support tickets"
+      ],
+      "created": "2026-03-13"
+    },
+    {
+      "id": "TF-021",
+      "title": "Custom fields for tasks",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 85,
+      "labels": ["customization", "enterprise", "core"],
+      "comments": [
+        "Enterprise customers need to add their own metadata",
+        "Blocking 2 large accounts from full adoption",
+        "Notion and Airtable both have this"
+      ],
+      "created": "2026-01-24"
+    },
+    {
+      "id": "TF-022",
+      "title": "Onboarding flow confusing for new users",
+      "type": "UX",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 55,
+      "labels": ["onboarding", "activation", "growth"],
+      "comments": [
+        "40% of new signups drop off before creating first task",
+        "Session recordings show confusion at workspace setup",
+        "Activation rate is 32% — industry avg is 55%"
+      ],
+      "created": "2026-02-24"
+    },
+    {
+      "id": "TF-023",
+      "title": "In-app tooltips and feature discovery",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 40,
+      "labels": ["onboarding", "ux", "activation"],
+      "comments": [
+        "Users not discovering key features like filters and views",
+        "Would help activation rate"
+      ],
+      "created": "2026-03-09"
+    },
+    {
+      "id": "TF-024",
+      "title": "Two-factor authentication for all users",
+      "type": "Feature Request",
+      "priority": "P1",
+      "status": "Backlog",
+      "days_in_backlog": 72,
+      "labels": ["security", "auth", "compliance"],
+      "comments": [
+        "Enterprise customers require this for compliance",
+        "Blocking 3 deals in financial services sector",
+        "SOC2 audit requires this"
+      ],
+      "created": "2026-02-07"
+    },
+    {
+      "id": "TF-025",
+      "title": "Audit log for enterprise compliance",
+      "type": "Feature Request",
+      "priority": "P2",
+      "status": "Backlog",
+      "days_in_backlog": 65,
+      "labels": ["security", "compliance", "enterprise"],
+      "comments": [
+        "Required for SOC2 and enterprise procurement",
+        "Same 3 financial services deals blocked"
+      ],
+      "created": "2026-02-14"
+    }
+  ]
+}
